@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link th:href="@{/css/style.css}" rel="stylesheet">
+    <title>OfdApp</title>
+</head>
+<body>
+<div class="header-setup">
+    <!--<a href="main"><img th:src="@{/ofdICON.png}" style="top: 2%; left: 2%; height:auto; width:auto"></a>-->
+</div>
+<div class="sidebar">
+    <a href="#" th:each="inn : ${inn}" id="[[${inn.inn}]]" th:onclick="showKKTs([[${inn.kktSet}]], [[${inn.inn}]]);">
+        <h1>Название:<p th:utext="${inn.name}"></p></h1>
+        <h1>ИНН:<p th:utext="${inn.inn}"></p></h1>
+    </a>
+    <footer>
+        <button class="button info" name="post" style="width:100%;bottom:0;" id="button" onclick="document.getElementById('blurBackground').style.display='flex';document.getElementById('addInn').style.display='flex'">Добавить
+            ИНН
+        </button>
+    </footer>
+</div>
+<div class="main" id="main">
+</div>
+<div class="blurBackground" id="blurBackground">
+    <div id="day">
+        <button class="closeBtn" name="close" onclick="closeBtn('day','dayLoading','dayBtn')">X</button>
+        <h1>Предупреждение</h1>
+        <p>Данная функция позволяет создать отчёт по выбранным кассам за текущий день.
+            Продолжить?</p>
+        <section class="lds-dual-ring" id="dayLoading" style="display: none"></section>
+        <button class="button report" name="report" id="dayBtn" >Продолжить</button>
+    </div>
+    <div id="week">
+        <button class="closeBtn" name="close" onclick="closeBtn('month','weekLoading','weekBtn')">X</button>
+        <h1>Предупреждение</h1>
+        <p>Данная функция позволяет создать отчёт по выбранным кассам за текущую неделю.
+            Продолжить?</p>
+        <section class="lds-dual-ring" id="weekLoading" style="display: none"></section>
+        <button class="button report" name="report" id="weekBtn">Продолжить</button>
+    </div>
+    <div id="month">
+        <button class="closeBtn" name="close" onclick="closeBtn('month','monthLoading','monthBtn')">X</button>
+        <h1>Предупреждение</h1>
+        <p>Данная функция позволяет создать отчёт по выбранным кассам за текущий месяц.
+            Продолжить?</p>
+        <section class="lds-dual-ring" id="monthLoading" style="display: none"></section>
+        <button class="button report" name="report" id="monthBtn">Продолжить</button>
+    </div>
+    <div id="year">
+        <button class="closeBtn" name="close" onclick="closeBtn('year','yearLoading','yearBtn')">X</button>
+        <h1>Предупреждение</h1>
+        <p>Данная функция позволяет создать отчёт по выбранным кассам за текущий год.
+            Продолжить?</p>
+        <section class="lds-dual-ring" id="yearLoading" style="display: none"></section>
+        <button class="button report" name="report" id="yearBtn">Продолжить</button>
+    </div>
+    <div id="deleteInn">
+        <button class="closeBtn" name="close" onclick="closeBtn('deleteInn','deleteInnLoading','deleteInnBtn')">X</button>
+        <h1>Предупреждение</h1>
+        <p>Данная функция позволяет удалить текущий инн.
+            Продолжить?</p>
+        <section class="lds-dual-ring" id="deleteInnLoading" style="display: none"></section>
+        <button class="button report" name="report" id="deleteInnBtn">Продолжить</button>
+    </div>
+    <div id="addInn">
+        <button class="closeBtn" name="close" onclick="closeBtn('addInn','addInnLoading','addInnBtn')">X</button>
+        <form id="innAdd">
+            <label for="name">Название:</label><br>
+            <input type="text" id="name" name="name"><br>
+            <label for="inn">Инн:</label><br>
+            <input type="text" id="inn" name="inn">
+        </form>
+        <br>
+        <h1>Предупреждение</h1>
+        <p style="padding: 10px">
+            Данная функция позволяет добавить новый ИНН, который закреплён за текущим аккаунтом в OFD.ru.<br>
+            Процедура представляет собой добавление ИНН, добавление всех ККТ, закреплённых за ИНН, добавление всех чеков, закрепленных за ККТ.<br>
+            Вся процедура может занят некоторое время, которое зависит от количества чеков, сохранённых на стороне OFD.ru<br>
+            Продолжить?</p>
+        <section class="lds-dual-ring" id="addInnLoading" style="display: none"></section>
+        <button class="button report" name="addInn" id="addInnBtn" onclick="addInnButton()">Продолжить</button>
+    </div>
+    <div id="period">
+        <button class="closeBtn" name="close" onclick="closeBtn('period','periodLoading','periodBtn')">X</button>
+        <form id="periodForm">
+            <label for="fromPeriod">Начальная дата:</label><br>
+            <input type="datetime-local" id="fromPeriod" name="fromPeriod" required><br>
+            <label for="toPeriod">Конечная дата:</label><br>
+            <input type="datetime-local" id="toPeriod" name="toPeriod" required>
+        </form>
+        <h1>Предупреждение</h1>
+        <p style="padding: 10px">
+            Данная функция позволяет создать отчёт по выбранным кассам за выбранный вами период.
+            Продолжить?</p>
+        <section class="lds-dual-ring"  id="periodLoading" style="display: none"></section>
+        <button class="button report" form="periodForm" type="submit" name="report" id="periodBtn">Продолжить</button>
+        <script th:line="javascript">
+            document.getElementById("periodForm").addEventListener('submit', (event) => {event.preventDefault()});
+        </script>
+    </div>
+</div>
+<script th:src="@{/js/script.js}" type="text/javascript"></script>
+<script th:src="@{/js/moment.min.js}" type="text/javascript"></script>
+</body>
+</html>

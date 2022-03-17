@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://thymeleaf.org" class="body-main">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link th:href="@{/css/style.css}" rel="stylesheet">
+
+
+    <title>OfdToExcel</title>
+</head>
+<body class="body-main">
+<div class="bg-image"></div>
+<div class="header-setup">
+    <!--<a href="#"><img th:src="@{/ofdICON.png}" style="top: 2%; left: 2%; height:auto;width:auto;"></a>-->
+</div>
+<div class="greetings">
+    <main>
+        <div>
+            <h1>Ofd В Эксель</h1>
+            <p>Ofd To Excel позволит вам без лишних заморочек создать полные чековые отчеты по выбранному вами отрезку
+                времени в формате .xls</p>
+            <button class="button info" id="button" name="post" onclick="document.getElementById('blurBackground').style.display='flex';document.getElementById('addUser').style.display='flex'">Начать работу</button>
+        </div>
+    </main>
+</div>
+<div class="blurBackground" id="blurBackground">
+    <div id="addUser">
+        <button class="closeBtn" name="close" id="closeUser" onclick="closeBtn('addUser','addUserLoading','addUserBtn')">X</button>
+        <form id="userAdd" style="width: 80%">
+            <label for="login">Логин вашего аккаунта в OFD.ru:</label><br>
+            <input type="text" id="login" name="login" required><br>
+            <label for="pass">Пароль:</label><br>
+            <input type="text" id="pass" name="pass" required>
+        </form>
+        <section class="lds-dual-ring" id="addUserLoading" style="display: none"></section>
+        <button class="button report" type="submit" form="userAdd" name="addUser" id="addUserBtn" onclick="addUserButton()">Продолжить</button>
+        <script th:line="javascript">
+            document.getElementById("userAdd").addEventListener('submit', (event) => {event.preventDefault()});
+        </script>
+    </div>
+</div>
+<script th:src="@{/js/script.js}" type="text/javascript"></script>
+</body>
+</html>
