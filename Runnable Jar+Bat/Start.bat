@@ -1,2 +1,2 @@
-chcp 866
-start java -Dfile.encoding=cp866 -jar ofdAppBase-0.0.1-SNAPSHOT.jar
+@ECHO OFF
+start java -Dfile.encoding=cp866 -jar ofdAppBase-1.0.1-SNAPSHOT.jar
