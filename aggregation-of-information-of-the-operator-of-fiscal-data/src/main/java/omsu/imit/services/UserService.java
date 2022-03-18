@@ -28,6 +28,7 @@ public class UserService {
         userCrudRepository.addUser(ofdTokenRequest.getLogin(), ofdTokenRequest.getPassword());
         if(login()==null){
             userCrudRepository.deleteAll();
+            userCrudRepository.alterTableOne();
             return new ResponseEntity<>("UserService login : Ошибка при получении токена от OFD.ru, неправильные логин/пароль", HttpStatus.BAD_REQUEST);
         }
         else{

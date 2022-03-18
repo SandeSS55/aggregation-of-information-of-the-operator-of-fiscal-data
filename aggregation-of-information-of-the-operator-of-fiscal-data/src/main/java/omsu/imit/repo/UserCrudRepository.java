@@ -25,4 +25,9 @@ public interface UserCrudRepository extends CrudRepository<User,Long> {
     @Query(value = "update user set login=:login, password=:password, token=:token, expiration_date=:time where id=1",nativeQuery = true)
     void updateUser(@Param("login")String login, @Param("password")String password, @Param("token")String token,
                     @Param("time")LocalDateTime time);
+
+    @Modifying
+    @Transactional
+    @Query(value = "alter table user AUTO_INCREMENT=1",nativeQuery = true)
+    void alterTableOne();
 }

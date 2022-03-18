@@ -118,8 +118,7 @@ function createDayReport(values) {
     document.getElementById('dayBtn').style.display = 'none';
     document.getElementById('dayLoading').style.display = 'flex';
     var to = moment().format();
-    var from = moment(to).subtract(1, 'days').format();
-
+    var from = moment(to).set('hour',0).set('minute',0).set('second',0).format();
     var xhr = new XMLHttpRequest();
     var url = "/shifts/reports";
     xhr.open("POST", url, true);
@@ -144,10 +143,9 @@ function createDayReport(values) {
 function createWeekReport(values) {
     document.getElementById('weekBtn').style.display = 'none';
     document.getElementById('weekLoading').style.display = 'flex';
-
-    var to = moment().format();  
-    var from = moment(to).subtract(1, 'weeks').format();
-    var xhr = new XMLHttpRequest(); 
+    var to = moment().format();
+    var from = moment(to).set('hour',0).set('minute',0).set('second',0).subtract(1, 'weeks').format();
+    var xhr = new XMLHttpRequest();
     var url = "/shifts/reports"; 
     xhr.open("POST", url, true); 
     xhr.setRequestHeader("Content-Type", "application/json");  
@@ -166,17 +164,15 @@ function createWeekReport(values) {
         "from": from.toString().substr(0, from.toString().length - 6), 
         "to": to.toString().substr(0, to.toString().length - 6), "kkts": values
     });
-    xhr.send(data); //отправляем
+    xhr.send(data);
 }
 
 
 function createMonthReport(values) {
     document.getElementById('monthBtn').style.display = 'none';
     document.getElementById('monthLoading').style.display = 'flex';
-
     var to = moment().format();
-    var from = moment(to).subtract(1, 'months').format();
-
+    var from = moment(to).set('hour',0).set('minute',0).set('second',0).subtract(1, 'months').format();
     var xhr = new XMLHttpRequest();
     var url = "/shifts/reports";
     xhr.open("POST", url, true);
@@ -203,7 +199,7 @@ function createYearReport(values) {
     document.getElementById('yearBtn').style.display = 'none';
     document.getElementById('yearLoading').style.display = 'flex';
     var to = moment().format();
-    var from = moment(to).subtract(1, 'years').format();
+    var from = moment(to).set('hour',0).set('minute',0).set('second',0).subtract(1, 'years').format();
     var xhr = new XMLHttpRequest();
     var url = "/shifts/reports";
     xhr.open("POST", url, true);
@@ -235,7 +231,6 @@ function deleteInn(inn) {
     xhr.setRequestHeader("Content-Type", "application/json");
     xhr.onreadystatechange = function () {
         if (xhr.readyState === 4 && xhr.status === 200) {
-            /*closeBtn2('deleteInn');*/
             document.getElementById('deleteInnLoading').style.display = 'none';
             let p = document.createElement('p');
             p.id = 'response';
@@ -294,6 +289,10 @@ function addInn(name, inn) {
             location.href='main';
             };
         }
+        if(xhr.onreadystatechange===4 && xhr.status===403){
+            deleteInn(inn);
+            addInn(name,inn);
+        }
     };
     var data = JSON.stringify({
         "name": name.toString(),
@@ -348,6 +347,9 @@ function updateBase(){
 			location.href='main';
 			};
 		}
+        if(xhr.readyState===4 && xhr.status===403){
+            updateBase();
+        }
 		if(xhr.readyState===4 && xhr.status!==200){
 			closeBtn2('update');
 			document.getElementById('updateLoading').style.display = 'none';

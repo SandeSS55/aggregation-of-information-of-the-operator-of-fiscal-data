@@ -75,6 +75,7 @@ public class ShiftController {
 
     @PostMapping("/deleteInn")
     public ResponseEntity<?> deleteInn(@RequestBody InnInfoRequest innInfoRequest) {
+        LOGGER.info("ИНН : "+innInfoRequest.getInn()+" был успешно удалён из локальной базы данных вместе с ККТ и чеками.");
         return innService.deleteInnByObj(innInfoRequest);
     }
 

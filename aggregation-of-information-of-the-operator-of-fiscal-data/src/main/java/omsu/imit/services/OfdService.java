@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.File;
@@ -63,28 +64,33 @@ public class OfdService {
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(map, headers);
 
-        ResponseEntity<String> jsonObjectResponseEntity = this.restTemplate.postForEntity
-                ("https://ofd.ru/api/Authorization/CreateAuthToken", entity, String.class);
-        if (Objects.requireNonNull(jsonObjectResponseEntity).getStatusCode() == HttpStatus.OK) {
-            return gson.fromJson(jsonObjectResponseEntity.getBody(), JsonObject.class);
-        } else {
-            JsonArray body = gson.fromJson(jsonObjectResponseEntity.getBody(), JsonObject.class).getAsJsonArray("Errors");
-            LOGGER.error("Токен не был создан/обновлён по причине(ам):");
-            for (int i = 0; i < gson.fromJson(jsonObjectResponseEntity.getBody(), JsonObject.class).size(); i++) {
-                LOGGER.error(body.get(i).getAsString());
+        try {
+            ResponseEntity<String> jsonObjectResponseEntity = this.restTemplate.postForEntity
+                    ("https://ofd.ru/api/Authorization/CreateAuthToken", entity, String.class);
+            if (Objects.requireNonNull(jsonObjectResponseEntity).getStatusCode() == HttpStatus.OK) {
+                return gson.fromJson(jsonObjectResponseEntity.getBody(), JsonObject.class);
+            } else {
+                JsonArray body = gson.fromJson(jsonObjectResponseEntity.getBody(), JsonObject.class).getAsJsonArray("Errors");
+                LOGGER.error("Токен не был создан/обновлён по причине(ам):");
+                for (int i = 0; i < gson.fromJson(jsonObjectResponseEntity.getBody(), JsonObject.class).size(); i++) {
+                    LOGGER.error(body.get(i).getAsString());
+                }
+                return null;
             }
+        }catch (HttpClientErrorException ex){
             return null;
         }
     }
 
     public ResponseEntity<?> createXls(LocalDateTime from, LocalDateTime to, List<String> kkts) throws IOException {
 
-        if(kkts.size()<1){
+        if (kkts.size() < 1) {
             LOGGER.error("В базе не найдено ККТ для создания отчётов.");
             return new ResponseEntity<>("В базе не найдено ККТ для создания отчётов.", HttpStatus.OK);
         }
 
-        List<Receipt> receiptList = receiptService.findAllReceipt().stream().filter(s -> kkts.contains(s.getKkt().getKktRegNumber())).filter(s -> s.getDocDateTime().isAfter(from) && s.getDocDateTime().isBefore(to)).
+        List<Receipt> receiptList = receiptService.findAllReceipt().stream().filter
+                (s -> kkts.contains(s.getKkt().getKktRegNumber())).filter(s -> s.getDocDateTime().isAfter(from) && s.getDocDateTime().isBefore(to)).
                 sorted(((Comparator<Receipt>) (o1, o2) -> {
                     return Long.compare(Long.parseLong(o1.getKkt().getKktRegNumber()), Long.parseLong(o2.getKkt().getKktRegNumber()));
                 }).thenComparingInt(Receipt::getDocNumber)).collect(Collectors.toList());

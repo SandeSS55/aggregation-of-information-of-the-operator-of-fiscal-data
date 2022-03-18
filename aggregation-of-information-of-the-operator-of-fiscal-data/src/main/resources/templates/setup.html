@@ -28,9 +28,9 @@
         <button class="closeBtn" name="close" id="closeUser" onclick="closeBtn('addUser','addUserLoading','addUserBtn')">X</button>
         <form id="userAdd" style="width: 80%">
             <label for="login">Логин вашего аккаунта в OFD.ru:</label><br>
-            <input type="text" id="login" name="login" required><br>
+            <input type="email" id="login" name="login" required><br>
             <label for="pass">Пароль:</label><br>
-            <input type="text" id="pass" name="pass" required>
+            <input type="password" id="pass" name="pass" required>
         </form>
         <section class="lds-dual-ring" id="addUserLoading" style="display: none"></section>
         <button class="button report" type="submit" form="userAdd" name="addUser" id="addUserBtn" onclick="addUserButton()">Продолжить</button>
