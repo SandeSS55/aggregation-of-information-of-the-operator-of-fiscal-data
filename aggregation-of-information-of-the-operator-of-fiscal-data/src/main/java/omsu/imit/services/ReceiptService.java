@@ -1,5 +1,12 @@
 package omsu.imit.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -13,10 +20,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -34,6 +41,13 @@ public class ReceiptService {
 
     @Autowired
     private OfdService ofdService;
+
+    ObjectMapper mapper = JsonMapper.builder() // or different mapper for other format
+            .addModule(new ParameterNamesModule())
+            .addModule(new Jdk8Module())
+            .addModule(new JavaTimeModule()).disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            // and possibly other configuration, modules, then:
+            .build();
 
     Gson gson = new Gson();
 
@@ -68,7 +82,107 @@ public class ReceiptService {
                 .collect(Collectors.toList());
     }
 
-    public ResponseEntity<?> insertReceiptsFromInn(long inn, boolean update, LocalDateTime startFrom) {
+    public JsonArray getReceiptsByDate(String date, Long id) {
+        List<Optional<Kkt>> kkts = new ArrayList<>();
+        if (Objects.isNull(kktService.getKktByid(id))) {
+            return new JsonArray();
+        }
+        kkts.add(Optional.ofNullable(kktService.getKktByid(id).get()));
+        LocalDateTime from = LocalDate.parse(date).atTime(0, 0, 0);
+
+        List<Receipt> list = new ArrayList<>(findAllReceipt().stream().filter
+                (s -> kkts.contains(Optional.ofNullable(s.getKkt()))).filter(s -> s.getDocDateTime().isAfter(from) && s.getDocDateTime().isBefore(from.plusDays(1))).collect(Collectors.toList()));
+
+
+        //String jsonString = new Gson().toJson(list);
+
+
+        JsonArray obj = /*gson.fromJson(JSONArray.toJSONString(list), JsonArray.class)*/new JsonArray();
+        list.forEach(s-> {
+            try {
+                obj.add(gson.fromJson(mapper.writer().withDefaultPrettyPrinter().writeValueAsString(s),JsonObject.class));
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+        });
+        JsonArray arr = new JsonArray();
+        obj.forEach(s -> {
+            String tmp;
+            JsonObject json = s.getAsJsonObject();
+            json.add("Вид", json.get("tag"));
+            json.remove("tag");
+            json.add("КолПоз", json.get("depth"));
+            json.remove("depth");
+            json.add("ФискНомДок", json.get("docNumber"));
+            json.remove("docNumber");
+            switch (json.get("operationType").getAsString()) {
+                case "Income":
+                    tmp = "Приход";
+                    break;
+                case "Расход":
+                    tmp = "Вид";
+                    break;
+                case "Refund income":
+                    tmp = "возврат прихода";
+                    break;
+                case "Refund expense":
+                    tmp = "возврат расхода";
+                    break;
+                default:
+                    tmp = "";
+                    break;
+            }
+            json.addProperty("ТипОпер", tmp);
+            json.remove("operationType");
+            json.add("Безнал", json.get("ecashSumm"));
+            json.remove("ecashSumm");
+            json.add("Наличными", json.get("cashSumm"));
+            json.remove("cashSumm");
+            json.addProperty("ВремяЧека", LocalDateTime.parse(json.get("docDateTime").getAsString()).format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")));
+            json.remove("docDateTime");
+            json.add("ИтоговаяСумма", json.get("totalSumm"));
+            json.remove("totalSumm");
+            json.add("НомерСмены", json.get("shiftNumber"));
+            json.remove("shiftNumber");
+            switch (json.get("fnsStatus").getAsString()) {
+                case "Success":
+                    tmp = "Успех";
+                    break;
+                case "Failed":
+                    tmp = "Неудача";
+                    break;
+                default:
+                    tmp = "";
+                    break;
+            }
+            json.addProperty("СтатусФНС", tmp);
+            json.remove("fnsStatus");
+            json.add("НомЧекСмена", json.get("receiptNumber"));
+            json.remove("receiptNumber");
+            switch (json.get("isCorrection").getAsString()) {
+                case "true":
+                    tmp = "Да";
+                    break;
+                case "false":
+                    tmp = "Нет";
+                    break;
+                default:
+                    tmp = "";
+                    break;
+            }
+            json.addProperty("ЧекКорр?", tmp);
+            json.remove("isCorrection");
+            json.remove("cDateUtc");
+            json.remove("CDateUtc");
+            json.remove("cdateUtc");
+            json.remove("DocDateTime");
+            arr.add(json);
+        });
+        String str = arr.toString();
+        return arr;
+    }
+
+    public ResponseEntity<?> insertReceiptsFromInn(long inn, boolean update, LocalDateTime startFrom) throws JsonProcessingException {
         List<Kkt> kktList = kktService.getAllKktByInn(inn);
         String token = userService.login();
         List<Receipt> receipts = new ArrayList<>();
@@ -122,9 +236,10 @@ public class ReceiptService {
                 from = from.plusDays(90);
             }
             kkt.setLastTimeUpdated(kkt.getLastDocOnOfdDateTime());
-            LOGGER.info("Чеки для ККТ с регистрационным номером: " + kkt.getKktRegNumber() + " были успешно добавленны в базу данных.");
+            LOGGER.info("Чеки для ККТ с регистрационным номером: " + kkt.getKktRegNumber() + " были успешно подготовлены для добавления в базу данных.");
         }
         receipts.sort(Comparator.comparingInt(Receipt::getShiftNumber).thenComparing(Receipt::getDocDateTime).thenComparingLong(o -> o.getKkt().getId()));
+        LOGGER.info("Время добавить все чеки!");
         receiptsCrudRepository.saveAll(receipts);
         if (!update) {
             LOGGER.info("Все чеки были успешно загружены в базу данных. Общее количество чеков: " + receiptsCrudRepository.count());

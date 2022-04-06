@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 
 @Service
@@ -43,7 +45,11 @@ public class KktService {
 
     public List<Kkt> getAllKktByInn(long inn) {
 
-        return kktCrudRepository.getKkts(innService.getInfoAboutCertainInn(inn).getBody().getId());
+        return kktCrudRepository.getKkts(Objects.requireNonNull(innService.getInfoAboutCertainInn(inn).getBody()).getId());
+    }
+
+    public Optional<Kkt> getKktByid(long id){
+        return kktCrudRepository.findById(id);
     }
 
     public void deleteAllKktByInn(long inn) {
@@ -93,7 +99,7 @@ public class KktService {
                 } else {
                     list.forEach(s -> {
                                 if (kktCrudRepository.findByKktRegNumber(s.getKktRegNumber()) != null) {
-                                    kktCrudRepository.updateKkt(s.getFnNumber(), s.getFnEndDate(), s.getFiscalAddress(), s.getFiscalPlace(), s.getId());
+                                    kktCrudRepository.updateKkt(s.getFnNumber(), s.getFnEndDate(), s.getFiscalAddress(), s.getFiscalPlace(),s.getLastDocOnOfdDateTime().toString(), Long.parseLong(s.getKktRegNumber()));
                                 } else {
                                     kktCrudRepository.save(s);
                                 }

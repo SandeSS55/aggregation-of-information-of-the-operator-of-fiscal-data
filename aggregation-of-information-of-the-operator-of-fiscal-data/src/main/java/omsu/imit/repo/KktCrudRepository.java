@@ -27,11 +27,11 @@ public interface KktCrudRepository extends CrudRepository<Kkt, Long> {
     @Query(value = "select * from kkt where inn_id = :inn", nativeQuery = true)
     List<Kkt> getKkts(@Param("inn") long inn);
 
-    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Modifying(clearAutomatically = true)
     @Transactional
-    @Query(value = "update kkt u set u.fn_number = :fnNumber,u.fn_end_date=:fnEndDate,fiscal_address = :fiscalAddress,fiscal_place = :fiscalPlace where u.id = :kkt", nativeQuery = true)
+    @Query(value = "update kkt u set u.fn_number = :fnNumber,u.fn_end_date=:fnEndDate,u.fiscal_address = :fiscalAddress,u.fiscal_place = :fiscalPlace,u.last_doc_on_ofd_date_time = :last_doc_on_ofd_date_time where u.kkt_reg_number = :kkt", nativeQuery = true)
     void updateKkt(@Param("fnNumber") String fnNumber, @Param("fnEndDate") String fnEndTime,
-                   @Param("fiscalAddress") String fiscalAddress, @Param("fiscalPlace") String fiscalPlace, @Param("kkt") long kkt);
+                   @Param("fiscalAddress") String fiscalAddress, @Param("fiscalPlace") String fiscalPlace,@Param("last_doc_on_ofd_date_time") String last_doc_on_ofd_date_time, @Param("kkt") long kkt);
 
     @Modifying
     @Transactional

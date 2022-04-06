@@ -8,10 +8,13 @@ import omsu.imit.repo.InnCrudRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -30,6 +33,7 @@ public class InnService {
 
     @Autowired
     private ReceiptService receiptService;
+
 
     Gson gson = new Gson();
 
@@ -73,6 +77,7 @@ public class InnService {
     }
 
     public ResponseEntity<?> insertInn(InnInfoRequest innInfoRequest) {
+
         if (innInfoRequest.getInn() <= 0 || innInfoRequest.getName() == null || innInfoRequest.getName().isEmpty()) {
             return new ResponseEntity<>("Данные введены неправильно!", HttpStatus.BAD_REQUEST);
         }
@@ -81,27 +86,32 @@ public class InnService {
             return new ResponseEntity<>("Такой ИНН уже есть в базе!", HttpStatus.BAD_REQUEST);
         }
 
-        ResponseEntity<String> responseEntity = ofdService.getPostsPlainJSON("https://ofd.ru/api/integration/v1/inn/" +
-                innInfoRequest.getInn() + "/kkts?AuthToken=" + userService.login());
+        try {
+            ResponseEntity<String> responseEntity = ofdService.getPostsPlainJSON("https://ofd.ru/api/integration/v1/inn/" +
+                    innInfoRequest.getInn() + "/kkts?AuthToken=" + userService.login());
+            JsonObject checkInn = gson.fromJson(responseEntity.getBody(), JsonObject.class);
 
-        JsonObject checkInn = gson.fromJson(responseEntity.getBody(), JsonObject.class);
+            if (checkInn.has("Errors") && checkInn.getAsJsonArray("Errors").get(0).getAsString().equals("InnNotFound")) {
+                LOGGER.error("InnService insertUser : ИНН не найден на данной учётной записи!");
+                return new ResponseEntity<>("Такой ИНН не закреплён за данной учётной записью!", HttpStatus.BAD_REQUEST);
+            }
 
-        if (checkInn.has("Errors") && checkInn.getAsJsonArray("Errors").get(0).getAsString().equals("InnNotFound")) {
-            LOGGER.error("InnService insertUser : ИНН не найден на данной учётной записи!");
-            return new ResponseEntity<>("Такой ИНН не закреплён за данной учётной записью!", HttpStatus.BAD_REQUEST);
+            if (checkInn.getAsJsonArray("Data").size() < 1) {
+                LOGGER.error("InnService insertUser : У данного ИНН не было найдено ни одного ККТ в базе");
+            }
+
+            if (innInfoRequest.getStartFrom() != null) {
+                innCrudRepository.insertNewInn(innInfoRequest.getInn(), innInfoRequest.getName(), innInfoRequest.getStartFrom(), userService.getUser());
+            } else {
+                innCrudRepository.insertNewInn(innInfoRequest.getInn(), innInfoRequest.getName(), null, userService.getUser());
+            }
+            LOGGER.info("ИНН:" + innInfoRequest.getInn() + " был успешно добавлен в базу, но привязанные ККТ и Чеки в процессе добавления.");
+
+            return new ResponseEntity<>(innInfoRequest.getInn(), HttpStatus.OK);
+        } catch (HttpClientErrorException ex) {
+            if (ex.getStatusCode().is4xxClientError())
+                return insertInn(innInfoRequest);
         }
-
-        if (checkInn.getAsJsonArray("Data").size() < 1) {
-            LOGGER.error("InnService insertUser : У данного ИНН не было найдено ни одного ККТ в базе");
-        }
-
-        if (innInfoRequest.getStartFrom() != null) {
-            innCrudRepository.insertNewInn(innInfoRequest.getInn(), innInfoRequest.getName(), innInfoRequest.getStartFrom(), userService.getUser());
-        } else {
-            innCrudRepository.insertNewInn(innInfoRequest.getInn(), innInfoRequest.getName(), null, userService.getUser());
-        }
-        LOGGER.info("ИНН:" + innInfoRequest.getInn() + " был успешно добавлен в базу, но привязанные ККТ и Чеки в процессе добавления.");
-
-        return new ResponseEntity<>(innInfoRequest.getInn(), HttpStatus.OK);
+        return null;
     }
 }

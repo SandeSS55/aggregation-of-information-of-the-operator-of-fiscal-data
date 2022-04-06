@@ -2,10 +2,14 @@ package omsu.imit.models;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import omsu.imit.LocalDateTimeDeserializer;
+import omsu.imit.LocalDateTimeSerializer;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 
 import javax.persistence.*;
@@ -36,6 +40,8 @@ public class Inn {
     @Column(unique = true)
     private long inn;
 
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
+    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     private LocalDateTime startLoadDate;
 
     @OneToMany(mappedBy = "inn", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)

@@ -2,10 +2,14 @@ package omsu.imit.models;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import omsu.imit.LocalDateTimeDeserializer;
+import omsu.imit.LocalDateTimeSerializer;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 
 import javax.persistence.*;
@@ -42,10 +46,16 @@ public class Kkt {
     @NotEmpty
     private String kktRegNumber;    // Регистрационный номер ККТ (кассы)
 
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
+    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     private LocalDateTime FirstDocumentDate;    //Время первого чека в кассе
 
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
+    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     private LocalDateTime LastDocOnOfdDateTime;  //Время последнего чека кассы в базе OFD
 
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
+    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     private LocalDateTime LastTimeUpdated; //(ISO) Дата последнего обновления чеков кассы в sql
 
     private String FiscalAddress; //Адрес

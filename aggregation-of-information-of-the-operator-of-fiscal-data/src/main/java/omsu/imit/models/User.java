@@ -1,10 +1,14 @@
 package omsu.imit.models;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import omsu.imit.LocalDateTimeDeserializer;
+import omsu.imit.LocalDateTimeSerializer;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 
 import javax.persistence.*;
@@ -38,6 +42,8 @@ public class User {
 
     private String token;  //Здесь будет храниться токен для работы с API от OFD
 
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
+    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     private LocalDateTime ExpirationDate;  //Время, когда "умрёт" токен (ISO,UTC)
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)

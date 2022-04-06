@@ -48,7 +48,11 @@ public class OfdService {
     }
 
     public ResponseEntity<String> getPostsPlainJSON(String url) {
-        return this.restTemplate.getForEntity(url, String.class);
+        try {
+            return this.restTemplate.getForEntity(url, String.class);
+        } catch (HttpClientErrorException ex) {
+            return new ResponseEntity<>(ex.getMessage(),ex.getStatusCode());
+        }
     }
 
     public JsonObject loginPostPlainJSON() {
@@ -77,7 +81,7 @@ public class OfdService {
                 }
                 return null;
             }
-        }catch (HttpClientErrorException ex){
+        } catch (HttpClientErrorException ex) {
             return null;
         }
     }
@@ -127,7 +131,7 @@ public class OfdService {
         }
 
         for (int i = 0; i < 7; i++) {
-            shift.setColumnWidth(i, 10000);
+            shift.setColumnWidth(i, 9000);
         }
 
         CellStyle style = workbook.createCellStyle();
@@ -140,18 +144,18 @@ public class OfdService {
             for (int i = 0; i < receiptList.size(); i++) {
                 Row row = shift.createRow(i + 1);
                 String doc = "";
-                switch (receiptList.get(i).getTag()) {
-                    case (3):
-                        doc = "Чек";
+                switch (receiptList.get(i).getOperationType()) {
+                    case ("Income"):
+                        doc = "Приход";
                         break;
-                    case (31):
-                        doc = "Чек коррекции";
+                    case ("Expense"):
+                        doc = "Расход";
                         break;
-                    case (4):
-                        doc = "бланк строгой отчетности";
+                    case ("Refund income"):
+                        doc = "Возврат прихода";
                         break;
-                    case (41):
-                        doc = "бланк строгой отчетности коррекции";
+                    case ("Refund expense"):
+                        doc = "Возврат расхода";
                         break;
                 }
                 String[] out = {
@@ -161,14 +165,18 @@ public class OfdService {
                         String.valueOf(receiptList.get(i).getDocNumber()),
                         doc,
                         "Оплата наличными",
-                        String.valueOf((double) (receiptList.get(i).getTotalSumm() / 100))
+                        String.valueOf(receiptList.get(i).getTotalSumm() / 100)
                 };
                 if (receiptList.get(i).getCashSumm() < receiptList.get(i).getECashSumm()) {
                     out[5] = "Безналичная оплата";
                 }
                 for (int j = 0; j < out.length; j++) {
                     Cell cell = row.createCell(j);
-                    cell.setCellValue(out[j]);
+                    if (j == 6) {
+                        cell.setCellValue(Double.parseDouble(out[j]));
+                    } else {
+                        cell.setCellValue(out[j]);
+                    }
                     cell.setCellStyle(style);
                 }
             }

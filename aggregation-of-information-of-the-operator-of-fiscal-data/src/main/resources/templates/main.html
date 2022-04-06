@@ -12,8 +12,8 @@
 </div>
 <div class="sidebar">
     <a href="#" th:each="inn : ${inn}" id="[[${inn.inn}]]" th:onclick="showKKTs([[${inn.kktSet}]], [[${inn.inn}]]);">
-        <h1>Название:<p th:utext="${inn.name}"></p></h1>
-        <h1>ИНН:<p th:utext="${inn.inn}"></p></h1>
+        <h1>Название:<span th:utext="${inn.name}"></span></h1>
+        <h1>ИНН:<span th:utext="${inn.inn}"></span></h1>
     </a>
     <footer>
         <button class="button info" name="post" style="width:100%;bottom:0;" id="button" onclick="document.getElementById('blurBackground').style.display='flex';document.getElementById('addInn').style.display='flex'">Добавить
@@ -101,7 +101,7 @@
         </script>
     </div>
 	<div id="update">
-        <button class="closeBtn" name="close" onclick="closeBtn('update',updateLoading','updateBtn')">X</button>
+        <button class="closeBtn" name="close" onclick="closeBtn('update','updateLoading','updateBtn')">X</button>
         <h1>Предупреждение</h1>
         <p style="padding: 10px">
             Данная функция позволяет принудительно обновить текущую базу данных, изменив текущую информацию о всех ККТ (если такая присутствует),
@@ -109,6 +109,22 @@
             Продолжить?</p>
         <section class="lds-dual-ring" id="updateLoading" style="display: none"></section>
         <button class="button report" name="report" id="updateBtn" onclick="updateButton()">Продолжить</button>
+    </div>
+    <div id = "receipts" style="width:50%;height:25%">
+        <header class="receiptHeader">
+            <form id="receiptForm">
+                <label for="receiptsDate">Выберите дату для вывода чеков</label>
+                <input type="date" id="receiptsDate" name="receiptsDate" required>
+                <button class="button receipt" name="receiptsBtn" form="receiptForm" type="submit" id="receiptsBtn">Вывести чеки</button>
+                <script th:line="javascript">
+                    document.getElementById("receiptForm").addEventListener('submit', (event) => {event.preventDefault()});
+                </script>
+            </form>
+        </header>
+        <div id="receiptsInfo" class="receiptsInfo">
+        </div>
+        <button class="closeBtn" name="close" onclick="closeBtn('receipts','','')">X</button>
+        <section class="lds-dual-ring" id="receiptsLoading" style="display: none"></section>
     </div>
 </div>
 <script th:src="@{/js/script.js}" type="text/javascript"></script>
