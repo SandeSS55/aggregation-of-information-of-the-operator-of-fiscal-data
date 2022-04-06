@@ -17,15 +17,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.FileTime;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 
@@ -51,7 +55,7 @@ public class OfdService {
         try {
             return this.restTemplate.getForEntity(url, String.class);
         } catch (HttpClientErrorException ex) {
-            return new ResponseEntity<>(ex.getMessage(),ex.getStatusCode());
+            return new ResponseEntity<>(ex.getMessage(), ex.getStatusCode());
         }
     }
 
@@ -86,7 +90,7 @@ public class OfdService {
         }
     }
 
-    public ResponseEntity<?> createXls(LocalDateTime from, LocalDateTime to, List<String> kkts) throws IOException {
+    public ResponseEntity<?> createXls(LocalDateTime from, LocalDateTime to, List<String> kkts, HttpServletResponse response) throws IOException {
 
         if (kkts.size() < 1) {
             LOGGER.error("В базе не найдено ККТ для создания отчётов.");
@@ -183,14 +187,37 @@ public class OfdService {
             File currDir = new File("../reports/");
             String path = currDir.getCanonicalPath();
 
-            String fileLocation = path + "\\" + "report-" + LocalDateTime.now().
-                    format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")).replace(':', '-') + ".xlsx";
+            String fileName = "report-" + LocalDateTime.now().
+                    format(DateTimeFormatter.ofPattern("dd-MM-yyyyHH:mm:ss")).replace(':', '-') + ".xlsx";
+
+            String fileLocation = path + "\\" + fileName;
 
             FileOutputStream outputStream = new FileOutputStream(fileLocation);
             workbook.write(outputStream);
             workbook.close();
             LOGGER.info("Отчет был успешно создан : " + path);
-            return new ResponseEntity<>("Отчет был успешно создан : " + path, HttpStatus.OK);
+            return new ResponseEntity<>(new String[]{"Отчет был успешно создан : " + fileLocation, fileName}, HttpStatus.OK);
         }
+    }
+
+    public void deleteOldReports() {
+        File file = new File("../reports/");
+        List<File> list = new ArrayList<>();
+        for (String str : Objects.requireNonNull(file.list())) {
+            list.add(new File("../reports/" + str));
+        }
+        AtomicInteger count = new AtomicInteger();
+        list.forEach(s -> {
+            try {
+                FileTime creationTime = (FileTime) Files.getAttribute(Path.of(s.getCanonicalPath()), "creationTime");
+                if (LocalDateTime.parse(creationTime.toString().substring(0, 19)).isBefore(LocalDateTime.now().minusDays(1))) {
+                    s.delete();
+                    count.getAndIncrement();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        LOGGER.info("Очистка директории от устаревших файлов прошла успешно. Удалённых файлов: " + count.toString());
     }
 }

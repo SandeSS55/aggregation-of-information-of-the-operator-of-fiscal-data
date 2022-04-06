@@ -87,17 +87,13 @@ public class ReceiptService {
         if (Objects.isNull(kktService.getKktByid(id))) {
             return new JsonArray();
         }
-        kkts.add(Optional.ofNullable(kktService.getKktByid(id).get()));
+        kkts.add(Optional.of(kktService.getKktByid(id).get()));
         LocalDateTime from = LocalDate.parse(date).atTime(0, 0, 0);
 
         List<Receipt> list = new ArrayList<>(findAllReceipt().stream().filter
                 (s -> kkts.contains(Optional.ofNullable(s.getKkt()))).filter(s -> s.getDocDateTime().isAfter(from) && s.getDocDateTime().isBefore(from.plusDays(1))).collect(Collectors.toList()));
 
-
-        //String jsonString = new Gson().toJson(list);
-
-
-        JsonArray obj = /*gson.fromJson(JSONArray.toJSONString(list), JsonArray.class)*/new JsonArray();
+        JsonArray obj = new JsonArray();
         list.forEach(s-> {
             try {
                 obj.add(gson.fromJson(mapper.writer().withDefaultPrettyPrinter().writeValueAsString(s),JsonObject.class));
@@ -109,7 +105,25 @@ public class ReceiptService {
         obj.forEach(s -> {
             String tmp;
             JsonObject json = s.getAsJsonObject();
-            json.add("Вид", json.get("tag"));
+            json.remove("id");
+            switch (Integer.parseInt(json.get("tag").getAsString())) {
+                case 3:
+                    tmp = "Чек";
+                    break;
+                case 31:
+                    tmp = "Чек Коррекции";
+                    break;
+                case 4:
+                    tmp = "Бланк строгой отчетности";
+                    break;
+                case 41:
+                    tmp = "Бланк строгой отчетности коррекции";
+                    break;
+                default:
+                    tmp = "";
+                    break;
+            }
+            json.addProperty("Вид", tmp);
             json.remove("tag");
             json.add("КолПоз", json.get("depth"));
             json.remove("depth");
@@ -182,15 +196,18 @@ public class ReceiptService {
         return arr;
     }
 
-    public ResponseEntity<?> insertReceiptsFromInn(long inn, boolean update, LocalDateTime startFrom) throws JsonProcessingException {
+    public ResponseEntity<?> insertReceiptsFromInn(long inn, boolean update, LocalDateTime startFrom) {
         List<Kkt> kktList = kktService.getAllKktByInn(inn);
         String token = userService.login();
         List<Receipt> receipts = new ArrayList<>();
         for (Kkt kkt : kktList) {
             LocalDateTime from;
-            if (!update) {
+            if (!update && startFrom==null) {
                 from = kkt.getFirstDocumentDate();
-            } else {
+            }else if(!update){
+                from=startFrom;
+            }
+            else {
                 if (kkt.getLastTimeUpdated() == null) {
                     from = kkt.getFirstDocumentDate();
                 } else {

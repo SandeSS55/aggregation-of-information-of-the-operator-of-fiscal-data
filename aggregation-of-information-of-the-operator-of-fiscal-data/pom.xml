@@ -10,7 +10,7 @@
     </parent>
     <groupId>omsu</groupId>
     <artifactId>ofdAppBase</artifactId>
-    <version>1.0.4-SNAPSHOT</version>
+    <version>1.1.0</version>
     <name>ofdApp</name>
     <description>aggregation-of-information-of-the-operator-of-fiscal-data</description>
     <properties>

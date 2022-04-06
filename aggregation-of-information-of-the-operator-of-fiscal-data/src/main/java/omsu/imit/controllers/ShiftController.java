@@ -11,16 +11,22 @@ import omsu.imit.dto.request.ReceiptRequest;
 import omsu.imit.dto.request.ReportRequest;
 import omsu.imit.models.Inn;
 import omsu.imit.services.*;
+import org.apache.commons.compress.utils.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
+import javax.servlet.http.HttpServletResponse;
+import java.io.*;
+import java.net.URLConnection;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -70,9 +76,23 @@ public class ShiftController {
     }
 
     @PostMapping("/reports")
-    public ResponseEntity<?> createReport(@RequestBody ReportRequest reportRequest) throws IOException {
+    public ResponseEntity<?> createReport(@RequestBody ReportRequest reportRequest, HttpServletResponse response) throws IOException {
         return ofdService.createXls(LocalDateTime.parse(reportRequest.getFrom()),
-                LocalDateTime.parse(reportRequest.getTo()), reportRequest.getKkts());
+                LocalDateTime.parse(reportRequest.getTo()), reportRequest.getKkts(),response);
+    }
+
+    @GetMapping(value = "/reports/{filename:.+}", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public @ResponseBody void getFile(@PathVariable("filename") String file,HttpServletResponse response) throws IOException {
+        File out = new File("../reports/" + file);
+        if (out.exists()) {
+
+            response.setContentType("application/vnd.ms-excel");
+            /*response.setHeader("Content-Disposition", String.format("inline; filename=\"" + out.getName() + "\""));*/
+            response.setHeader("Content-Disposition", String.format("attachment; filename=\"" + out.getName() + "\""));
+            response.setContentLength((int) out.length());
+            InputStream inputStream = new BufferedInputStream(new FileInputStream(out));
+            FileCopyUtils.copy(inputStream, response.getOutputStream());
+        }
     }
 
     @GetMapping("/update")
@@ -84,6 +104,13 @@ public class ShiftController {
             insertReceiptsFromUpdate(inn.getInn());
         }
         return new ResponseEntity<>("Все ИНН, ККТ были успешно обновлены. Добавлены новые чеки.", HttpStatus.OK);
+    }
+
+    @GetMapping("/deleteOldReports")
+    @Async
+    @Scheduled(cron = "0 0 0 * * ?")
+    public void deleteOldReports(){
+        ofdService.deleteOldReports();
     }
 
     @PostMapping("/deleteInn")

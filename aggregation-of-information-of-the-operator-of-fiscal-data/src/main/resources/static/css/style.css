@@ -130,7 +130,8 @@ table, th, td {
     padding: 2px 3px;
     text-align: center;
     color: black;
-    width: 95%;
+    table-layout:fixed;
+    width: 100%;
     height: 95%;
     background-color: #ffd291;
 }

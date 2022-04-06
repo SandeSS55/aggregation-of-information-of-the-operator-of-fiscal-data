@@ -152,21 +152,24 @@ function createDayReport(values) {
     var url = "/shifts/reports";
     xhr.open("POST", url, true);
     xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-            closeBtn2('day');
-            document.getElementById('dayLoading').style.display = 'none';
-            let p = document.createElement('p');
-            p.id = 'response';
-            document.getElementById('day').appendChild(p);
-            document.getElementById('response').innerHTML += xhr.responseText;
-        }
-    };
+
     var data = JSON.stringify({
         "from": from.toString().substr(0, from.toString().length - 6),
         "to": to.toString().substr(0, to.toString().length - 6), "kkts": values
     });
     xhr.send(data);
+    xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                closeBtn2('day');
+                document.getElementById('dayLoading').style.display = 'none';
+                let p = document.createElement('p');
+                p.id = 'response';
+                document.getElementById('day').appendChild(p);
+                let str = JSON.parse(xhr.responseText);
+                document.getElementById('response').innerHTML += str[0];
+                window.open('shifts/reports/'+str[1], '_blank').focus();
+            }
+        };
 }
 
 function createWeekReport(values) {
@@ -181,12 +184,14 @@ function createWeekReport(values) {
     xhr.onreadystatechange = function () {
         if (xhr.readyState === 4 && xhr.status === 200) {
             closeBtn2('week');
-
             document.getElementById('weekLoading').style.display = 'none';
             let p = document.createElement('p');
             p.id = 'response';
             document.getElementById('week').appendChild(p);
-            document.getElementById('response').innerHTML += xhr.responseText;
+            let str = JSON.parse(xhr.responseText);
+                            document.getElementById('response').innerHTML += str[0];
+                            window.open('shifts/reports/'+str[1], '_blank').focus();
+
         }
     };
     var data = JSON.stringify({
@@ -213,7 +218,9 @@ function createMonthReport(values) {
             let p = document.createElement('p');
             p.id = 'response';
             document.getElementById('month').appendChild(p);
-            document.getElementById('response').innerHTML += xhr.responseText;
+            let str = JSON.parse(xhr.responseText);
+                            document.getElementById('response').innerHTML += str[0];
+                            window.open('shifts/reports/'+str[1], '_blank').focus();
         }
     };
     var data = JSON.stringify({
@@ -240,7 +247,9 @@ function createYearReport(values) {
             let p = document.createElement('p');
             p.id = 'response';
             document.getElementById('year').appendChild(p);
-            document.getElementById('response').innerHTML += xhr.responseText;
+            let str = JSON.parse(xhr.responseText);
+                            document.getElementById('response').innerHTML += str[0];
+                            window.open('shifts/reports/'+str[1], '_blank').focus();
         }
     };
     var data = JSON.stringify({
@@ -295,7 +304,9 @@ function createPeriodReport(from, to, values) {
             let p = document.createElement('p');
             p.id = 'response';
             document.getElementById('period').appendChild(p);
-            document.getElementById('response').innerHTML += xhr.responseText;
+            let str = JSON.parse(xhr.responseText);
+                            document.getElementById('response').innerHTML += str[0];
+                            window.open('shifts/reports/'+str[1], '_blank').focus();
         }
     };
 }
