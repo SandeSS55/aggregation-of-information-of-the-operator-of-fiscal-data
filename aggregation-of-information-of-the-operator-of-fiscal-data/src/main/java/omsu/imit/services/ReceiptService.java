@@ -19,11 +19,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -42,36 +48,25 @@ public class ReceiptService {
     @Autowired
     private OfdService ofdService;
 
-    ObjectMapper mapper = JsonMapper.builder() // or different mapper for other format
+    ObjectMapper mapper = JsonMapper.builder()
             .addModule(new ParameterNamesModule())
             .addModule(new Jdk8Module())
             .addModule(new JavaTimeModule()).disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-            // and possibly other configuration, modules, then:
             .build();
 
     Gson gson = new Gson();
 
+    /**
+     * Следующие два булева необходимы, чтобы
+     * Правильно отображать в UI состояние
+     * Базы: Обновлена, обновляется, произошла ошибка при обновлении
+     */
+    private final AtomicBoolean isUpdating = new AtomicBoolean(false);
+    private final AtomicBoolean isErr = new AtomicBoolean(false);
+
+    private int amountOfTries = 0;
+
     private final Logger LOGGER = LoggerFactory.getLogger(ReceiptService.class);
-
-    public Receipt getInfoAboutCertainReceipt(long id) {
-        return receiptsCrudRepository.findById(id).orElse(null);
-    }
-
-    public List<Receipt> getAllReceiptsByKkt(long id) {
-        return receiptsCrudRepository.findByKkt(id);
-    }
-
-    public long amountOfReceipts() {
-        return receiptsCrudRepository.count();
-    }
-
-    public void deleteAllReceipts() {
-        receiptsCrudRepository.deleteAll();
-    }
-
-    public void deleteReceiptById(long id) {
-        receiptsCrudRepository.deleteById(id);
-    }
 
     public void deleteAllReceiptByKkt(long kkt) {
         receiptsCrudRepository.deleteAllReceiptsByKkt(kkt);
@@ -84,7 +79,8 @@ public class ReceiptService {
 
     public JsonArray getReceiptsByDate(String date, Long id) {
         List<Optional<Kkt>> kkts = new ArrayList<>();
-        if (Objects.isNull(kktService.getKktByid(id))) {
+
+        if (kktService.getKktByid(id).isEmpty()) {
             return new JsonArray();
         }
         kkts.add(Optional.of(kktService.getKktByid(id).get()));
@@ -94,9 +90,9 @@ public class ReceiptService {
                 (s -> kkts.contains(Optional.ofNullable(s.getKkt()))).filter(s -> s.getDocDateTime().isAfter(from) && s.getDocDateTime().isBefore(from.plusDays(1))).collect(Collectors.toList()));
 
         JsonArray obj = new JsonArray();
-        list.forEach(s-> {
+        list.forEach(s -> {
             try {
-                obj.add(gson.fromJson(mapper.writer().withDefaultPrettyPrinter().writeValueAsString(s),JsonObject.class));
+                obj.add(gson.fromJson(mapper.writer().withDefaultPrettyPrinter().writeValueAsString(s), JsonObject.class));
             } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
@@ -192,81 +188,111 @@ public class ReceiptService {
             json.remove("DocDateTime");
             arr.add(json);
         });
-        String str = arr.toString();
         return arr;
     }
 
     public ResponseEntity<?> insertReceiptsFromInn(long inn, boolean update, LocalDateTime startFrom) {
-        List<Kkt> kktList = kktService.getAllKktByInn(inn);
-        String token = userService.login();
-        List<Receipt> receipts = new ArrayList<>();
-        for (Kkt kkt : kktList) {
-            LocalDateTime from;
-            if (!update && startFrom==null) {
-                from = kkt.getFirstDocumentDate();
-            }else if(!update){
-                from=startFrom;
-            }
-            else {
-                if (kkt.getLastTimeUpdated() == null) {
+        try {
+            getIsUpdating().getAndSet(true);
+            List<Kkt> kktList = kktService.getAllKktByInn(inn);
+            String token = userService.login();
+            List<Receipt> receipts = new ArrayList<>();
+            for (Kkt kkt : kktList) {
+                LocalDateTime from;
+                if (!update && startFrom == null) {
                     from = kkt.getFirstDocumentDate();
+                } else if (!update) {
+                    from = startFrom;
                 } else {
-                    from = kkt.getLastTimeUpdated();
-                }
-            }
-            LocalDateTime to = kkt.getLastDocOnOfdDateTime();
-            while (from.isBefore(to)) {
-                ResponseEntity<String> responseEntity = ofdService.getPostsPlainJSON(
-                        "https://ofd.ru/api/integration/v1/inn/" + inn + "/kkt/" + kkt.getKktRegNumber() +
-                                "/receipts-with-fpd-short?dateFrom=" + from.toString() +
-                                "&dateTo=" + from.plusDays(90) + "&AuthToken=" + token
-                );
-                if (!responseEntity.getStatusCode().is2xxSuccessful()) {
-                    LOGGER.error("ReceiptService insertReceiptsFromInn : Ошибка при отправке запроса на чеки");
-                    LOGGER.error("Ошибки:");
-                    for (int j = 0; j < gson.fromJson(responseEntity.getBody(), JsonObject.class).getAsJsonArray("Errors").size(); j++) {
-                        LOGGER.error(gson.fromJson(responseEntity.getBody(), JsonObject.class).getAsJsonArray("Errors").get(j).getAsString());
+                    if (kkt.getLastTimeUpdated() == null) {
+                        from = kkt.getFirstDocumentDate();
+                    } else {
+                        from = kkt.getLastTimeUpdated();
                     }
-                    return new ResponseEntity<>("ReceiptService insertReceiptsFromInn : Ошибка при отправке запроса на чеки", HttpStatus.BAD_REQUEST);
                 }
-                JsonArray receiptsRaw = gson.fromJson(responseEntity.getBody(), JsonObject.class).getAsJsonArray("Data");
-                receiptsRaw.forEach(s -> {
-                    JsonObject obj = gson.fromJson(s, JsonObject.class);
-                    receipts.add(new Receipt(
-                            Integer.parseInt(obj.get("ReceiptNumber").getAsString()),
-                            LocalDateTime.parse(obj.get("CDateUtc").getAsString()),
-                            Boolean.parseBoolean(obj.get("IsCorrection").getAsString()),
-                            LocalDateTime.parse(obj.get("DocDateTime").getAsString()),
-                            Integer.parseInt(obj.get("DocNumber").getAsString()),
-                            Integer.parseInt(obj.get("DocShiftNumber").getAsString()),
-                            obj.get("OperationType").getAsString(),
-                            Integer.parseInt(obj.get("Tag").getAsString()),
-                            Integer.parseInt(obj.get("CashSumm").getAsString()),
-                            Integer.parseInt(obj.get("ECashSumm").getAsString()),
-                            Integer.parseInt(obj.get("TotalSumm").getAsString()),
-                            Integer.parseInt(obj.get("Depth").getAsString()),
-                            obj.get("FnsStatus").getAsString(),
-                            obj.toString(),
-                            kkt
-                    ));
-                });
-                from = from.plusDays(90);
+                LocalDateTime to = kkt.getLastDocOnOfdDateTime();
+                while (from.isBefore(to)) {
+                    ResponseEntity<String> responseEntity = ofdService.getPostsPlainJSON(
+                            "https://ofd.ru/api/integration/v1/inn/" + inn + "/kkt/" + kkt.getKktRegNumber() +
+                                    "/receipts-with-fpd-short?dateFrom=" + from.toString() +
+                                    "&dateTo=" + from.plusDays(90) + "&AuthToken=" + token
+                    );
+                    JsonArray receiptsRaw = gson.fromJson(responseEntity.getBody(), JsonObject.class).getAsJsonArray("Data");
+                    receiptsRaw.forEach(s -> {
+                        JsonObject obj = gson.fromJson(s, JsonObject.class);
+                        receipts.add(new Receipt(
+                                Integer.parseInt(obj.get("ReceiptNumber").getAsString()),
+                                LocalDateTime.parse(obj.get("CDateUtc").getAsString()),
+                                Boolean.parseBoolean(obj.get("IsCorrection").getAsString()),
+                                LocalDateTime.parse(obj.get("DocDateTime").getAsString()),
+                                Integer.parseInt(obj.get("DocNumber").getAsString()),
+                                Integer.parseInt(obj.get("DocShiftNumber").getAsString()),
+                                obj.get("OperationType").getAsString(),
+                                Integer.parseInt(obj.get("Tag").getAsString()),
+                                Integer.parseInt(obj.get("CashSumm").getAsString()),
+                                Integer.parseInt(obj.get("ECashSumm").getAsString()),
+                                Integer.parseInt(obj.get("TotalSumm").getAsString()),
+                                Integer.parseInt(obj.get("Depth").getAsString()),
+                                obj.get("FnsStatus").getAsString(),
+                                obj.toString(),
+                                kkt
+                        ));
+                    });
+                    from = from.plusDays(90);
+                }
+                kkt.setLastTimeUpdated(kkt.getLastDocOnOfdDateTime());
+                LOGGER.info("Чеки для ККТ с регистрационным номером: " + kkt.getKktRegNumber() + " были успешно подготовлены для добавления в базу данных.");
             }
-            kkt.setLastTimeUpdated(kkt.getLastDocOnOfdDateTime());
-            LOGGER.info("Чеки для ККТ с регистрационным номером: " + kkt.getKktRegNumber() + " были успешно подготовлены для добавления в базу данных.");
+            receipts.sort(Comparator.comparingInt(Receipt::getShiftNumber).thenComparing(Receipt::getDocDateTime).thenComparingLong(o -> o.getKkt().getId()));
+            LOGGER.info("Время добавить все чеки!");
+            receiptsCrudRepository.saveAll(receipts);
+            getIsErr().getAndSet(false);
+            getIsUpdating().getAndSet(false);
+            if (!update) {
+                LOGGER.info("Все чеки были успешно загружены в базу данных. Общее количество чеков: " + receiptsCrudRepository.count());
+                return new ResponseEntity<>("Все чеки были успешно загружены в базу данных. Общее количество чеков: " +
+                        receiptsCrudRepository.count(), HttpStatus.OK);
+            } else {
+                LOGGER.info("Все чеки были успешно загружены в базу данных во время обновления базы." +
+                        " Общее количество чеков: " + receiptsCrudRepository.count());
+                return new ResponseEntity<>("Все чеки были успешно загружены в базу данных во время обновления базы." +
+                        " Общее количество чеков: " + receiptsCrudRepository.count(), HttpStatus.OK);
+            }
+        } catch (HttpClientErrorException ex) {
+            LOGGER.error("ReceiptService insertReceiptsFromInn : Ошибка при отправке запроса на чеки");
+            LOGGER.error("Ошибки:");
+            for (int j = 0; j < gson.fromJson(ex.getMessage(), JsonObject.class).getAsJsonArray("Errors").size(); j++) {
+                LOGGER.error(gson.fromJson(ex.getMessage(), JsonObject.class).getAsJsonArray("Errors").get(j).getAsString());
+            }
+            getIsUpdating().getAndSet(false);
+            return new ResponseEntity<>("insertReceiptsFromInn : Ошибка при отправке запроса на чеки", HttpStatus.BAD_REQUEST);
+        }catch (HttpServerErrorException ex){
+            if (getAmountOfTries() < 3) {
+                setAmountOfTries(getAmountOfTries() + 1);
+                getIsErr().getAndSet(true);
+                insertReceiptsFromInn(inn, update, startFrom);
+            } else {
+                getIsUpdating().getAndSet(false);
+                return new ResponseEntity<>("insertReceiptsFromInn : Ошибка при отправке запроса на чеки", HttpStatus.BAD_REQUEST);
+            }
         }
-        receipts.sort(Comparator.comparingInt(Receipt::getShiftNumber).thenComparing(Receipt::getDocDateTime).thenComparingLong(o -> o.getKkt().getId()));
-        LOGGER.info("Время добавить все чеки!");
-        receiptsCrudRepository.saveAll(receipts);
-        if (!update) {
-            LOGGER.info("Все чеки были успешно загружены в базу данных. Общее количество чеков: " + receiptsCrudRepository.count());
-            return new ResponseEntity<>("Все чеки были успешно загружены в базу данных. Общее количество чеков: " +
-                    receiptsCrudRepository.count(), HttpStatus.OK);
-        } else {
-            LOGGER.info("Все чеки были успешно загружены в базу данных во время обновления базы." +
-                    " Общее количество чеков: " + receiptsCrudRepository.count());
-            return new ResponseEntity<>("Все чеки были успешно загружены в базу данных во время обновления базы." +
-                    " Общее количество чеков: " + receiptsCrudRepository.count(), HttpStatus.OK);
-        }
+        return new ResponseEntity<>("Произошла магия, и при добавлении чеков метод вернул это сообщение. Как так получилось?...", HttpStatus.BAD_REQUEST);
+    }
+
+    public AtomicBoolean getIsUpdating() {
+        return isUpdating;
+    }
+
+    public AtomicBoolean getIsErr() {
+        return isErr;
+    }
+
+
+    public int getAmountOfTries() {
+        return amountOfTries;
+    }
+
+    public void setAmountOfTries(int amountOfTries) {
+        this.amountOfTries = amountOfTries;
     }
 }

@@ -42,13 +42,34 @@ body, html {
     height: 87px;
 }
 
-.receiptHeader{
+.baseState {
+    width: fit-content;
+    height: fit-content;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    position: fixed;
+    right: 2%;
+    top: 1%;
+}
+
+.statusBaseState {
+height:100%;
+    display: inline-block;
+}
+
+.receiptHeader {
     display: inline-block;
 }
 
 p {
     color: black;
     font-family: Arial Narrow, sans-serif;
+}
+
+.img {
+    height:50px;
+    display: none;
 }
 
 .greetings {
@@ -103,7 +124,7 @@ p {
     border: 2px solid black;
 }
 
-.main a{
+.main a {
     font-size: 24px; /* Increase the font-size */
     color: black; /* Add a black text color */
     display: block; /* Make it into a block element to fill the whole list */
@@ -130,27 +151,28 @@ table, th, td {
     padding: 2px 3px;
     text-align: center;
     color: black;
-    table-layout:fixed;
+    table-layout: fixed;
     width: 100%;
     height: 95%;
     background-color: #ffd291;
 }
-table{
+
+table {
     overflow: auto;
 }
 
 th {
-    font-weight:bold;
+    font-weight: bold;
 }
 
-input[type='checkbox']{
+input[type='checkbox'] {
     position: sticky;
     right: 100%;
 }
 
-.footerLike{
+.footerLike {
     position: sticky;
-    top:0;
+    top: 0;
     overflow-y: auto;
     height: auto;
     width: 100%;
@@ -175,11 +197,8 @@ input[type='checkbox']{
 }
 
 .update {
-	position:absolute;
     background-color: #2196F3;
     word-wrap: break-word;
-	right:1%;
-	top:5%;
 }
 
 .update:hover {
@@ -199,7 +218,7 @@ input[type='checkbox']{
     background: #894646;
 }
 
-.receipt{
+.receipt {
     display: inline-block;
     width: auto;
     border: 1px solid black;
@@ -209,7 +228,7 @@ input[type='checkbox']{
 .closeBtn {
     display: block;
     position: absolute;
-    top:0;
+    top: 0;
     right: 1%;
     background-color: transparent;
     background-repeat: no-repeat;
@@ -255,18 +274,17 @@ input[type='checkbox']{
     border-radius: 25px;
 }
 
-.blurBackground p{
+.blurBackground p {
     text-align: center;
     width: 100%;
-    color:white;
+    color: white;
 }
 
-.blurBackground h1{
+.blurBackground h1 {
     text-align: center;
     width: 100%;
-    color:white;
+    color: white;
 }
-
 
 
 /*------------------loading animation -------------------*/
@@ -297,6 +315,33 @@ input[type='checkbox']{
         transform: rotate(360deg);
     }
 }
+
+.lds-dual-ring-status {
+    background-color: transparent;
+    width: 50px;
+    height: 50px;
+    padding: 0 5px 0 0;
+}
+
+.lds-dual-ring-status:after {
+    content: " ";
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 6px solid #fff;
+    border-color: #fff transparent #fff transparent;
+    animation: lds-dual-ring 1.2s linear infinite;
+}
+
+@keyframes lds-dual-ring-status {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
 #search {
     background-image: url('../searchicon.png'); /* Add a search icon to input */
     background-position: 10px 12px; /* Position the search icon */

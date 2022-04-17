@@ -46,19 +46,20 @@ public class BaseInitializer {
     public void init() throws JsonProcessingException {
         if (userService.getUser() == null) {
             if (login != null && !login.equals("") && password != null && !password.equals("")) {
-                shiftController.insertUser(new OfdTokenRequest(login, password));
-                if (inn.length > 0) {
-                    for (String inn : inn) {
-                        try {
-                            if (startDate != null && !startDate.equals("")) {
-                                shiftController.insertInn(new InnInfoRequest(inn, Long.parseLong(inn), LocalDateTime.parse(startDate)));
-                            } else {
+                if (shiftController.insertUser(new OfdTokenRequest(login, password)).getStatusCode().is2xxSuccessful()) {
+                    if (inn.length > 0) {
+                        for (String inn : inn) {
+                            try {
+                                if (startDate != null && !startDate.equals("")) {
+                                    shiftController.insertInn(new InnInfoRequest(inn, Long.parseLong(inn), LocalDateTime.parse(startDate)));
+                                } else {
+                                    shiftController.insertInn(new InnInfoRequest(inn, Long.parseLong(inn), null));
+                                }
+                            } catch (Exception ex) {
+                                LOGGER.error("Неправильно введена дата в application.properties, загрузка чеков будет осуществляться по дате первого чека в " +
+                                        "фискальном накопителе");
                                 shiftController.insertInn(new InnInfoRequest(inn, Long.parseLong(inn), null));
                             }
-                        } catch (Exception ex) {
-                            LOGGER.error("Неправильно введена дата в application.properties, загрузка чеков будет осуществляться по дате первого чека в " +
-                                    "фискальном накопителе");
-                            shiftController.insertInn(new InnInfoRequest(inn, Long.parseLong(inn), null));
                         }
                     }
                 }

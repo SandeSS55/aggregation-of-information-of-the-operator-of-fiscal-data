@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
 
@@ -26,12 +27,11 @@ public class UserService {
 
     public ResponseEntity<?> addUser(OfdTokenRequest ofdTokenRequest) {
         userCrudRepository.addUser(ofdTokenRequest.getLogin(), ofdTokenRequest.getPassword());
-        if(login()==null){
+        if (login() == null) {
             userCrudRepository.deleteAll();
             userCrudRepository.alterTableOne();
             return new ResponseEntity<>("UserService login : Ошибка при получении токена от OFD.ru, неправильные логин/пароль", HttpStatus.BAD_REQUEST);
-        }
-        else{
+        } else {
             LOGGER.info("Данные для логирования в ОФД были успешно добавлены в базу.");
             return new ResponseEntity<>("Данные для логирования в ОФД были успешно добавлены в базу.", HttpStatus.OK);
         }
@@ -47,20 +47,26 @@ public class UserService {
     }
 
     public String login() {
-        User user = getUser();
-        if(user.getExpirationDate()!=null && user.getExpirationDate().isAfter(LocalDateTime.now())){
-            return user.getToken();
-        }
-        JsonObject jsonObject = ofdService.loginPostPlainJSON();
-        if (jsonObject == null) {
+        try {
+            User user = getUser();
+            if (user.getExpirationDate() != null && user.getExpirationDate().isAfter(LocalDateTime.now())) {
+                return user.getToken();
+            }
+            ResponseEntity<?> responseEntity = ofdService.loginPostPlainJSON();
+            if (responseEntity.getStatusCode().is2xxSuccessful()) {
+                JsonObject jsonObject = (JsonObject) responseEntity.getBody();
+                LOGGER.info("Токен был создан/обновлён успешно!");
+                assert jsonObject != null;
+                user.setToken(jsonObject.get("AuthToken").getAsString());
+                String time = jsonObject.get("ExpirationDateUtc").getAsString();
+                user.setExpirationDate(LocalDateTime.parse(time));
+                updateUser(user);
+                return user.getToken();
+            }
+        } catch (HttpClientErrorException ex) {
             LOGGER.error("UserService login : Ошибка при получении токена от OFD.ru, неправильные логин/пароль");
             return null;
         }
-        LOGGER.info("Токен был создан/обновлён успешно!");
-        user.setToken(jsonObject.get("AuthToken").getAsString());
-        String time = jsonObject.get("ExpirationDateUtc").getAsString();
-        user.setExpirationDate(LocalDateTime.parse(time));
-        updateUser(user);
-        return user.getToken();
+        return null;
     }
 }

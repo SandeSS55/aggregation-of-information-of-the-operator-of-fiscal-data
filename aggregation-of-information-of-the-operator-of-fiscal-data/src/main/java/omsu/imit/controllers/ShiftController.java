@@ -2,20 +2,15 @@ package omsu.imit.controllers;
 
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import omsu.imit.dto.request.InnInfoRequest;
 import omsu.imit.dto.request.OfdTokenRequest;
 import omsu.imit.dto.request.ReceiptRequest;
 import omsu.imit.dto.request.ReportRequest;
 import omsu.imit.models.Inn;
 import omsu.imit.services.*;
-import org.apache.commons.compress.utils.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +21,6 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
-import java.net.URLConnection;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -44,14 +38,6 @@ public class ShiftController {
     private UserService userService;
     @Autowired
     private OfdService ofdService;
-
-    private String login;
-
-    private String password;
-
-    private String[] inn;
-
-    private String startDate;
 
     private final Logger LOGGER = LoggerFactory.getLogger(ShiftController.class);
 
@@ -78,16 +64,16 @@ public class ShiftController {
     @PostMapping("/reports")
     public ResponseEntity<?> createReport(@RequestBody ReportRequest reportRequest, HttpServletResponse response) throws IOException {
         return ofdService.createXls(LocalDateTime.parse(reportRequest.getFrom()),
-                LocalDateTime.parse(reportRequest.getTo()), reportRequest.getKkts(),response);
+                LocalDateTime.parse(reportRequest.getTo()), reportRequest.getKkts(), response);
     }
 
     @GetMapping(value = "/reports/{filename:.+}", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-    public @ResponseBody void getFile(@PathVariable("filename") String file,HttpServletResponse response) throws IOException {
+    public @ResponseBody
+    void getFile(@PathVariable("filename") String file, HttpServletResponse response) throws IOException {
         File out = new File("../reports/" + file);
         if (out.exists()) {
 
             response.setContentType("application/vnd.ms-excel");
-            /*response.setHeader("Content-Disposition", String.format("inline; filename=\"" + out.getName() + "\""));*/
             response.setHeader("Content-Disposition", String.format("attachment; filename=\"" + out.getName() + "\""));
             response.setContentLength((int) out.length());
             InputStream inputStream = new BufferedInputStream(new FileInputStream(out));
@@ -106,22 +92,28 @@ public class ShiftController {
         return new ResponseEntity<>("Все ИНН, ККТ были успешно обновлены. Добавлены новые чеки.", HttpStatus.OK);
     }
 
+    @GetMapping("/isUpdate")
+    @Async
+    public ResponseEntity<?> isBaseUpdating() {
+        return new ResponseEntity<>(new boolean[]{kktService.getIsErr().get(), kktService.getIsUpdating().get(), receiptService.getIsErr().get(), receiptService.getIsUpdating().get()}, HttpStatus.OK);
+    }
+
     @GetMapping("/deleteOldReports")
     @Async
     @Scheduled(cron = "0 0 0 * * ?")
-    public void deleteOldReports(){
+    public void deleteOldReports() {
         ofdService.deleteOldReports();
     }
 
     @PostMapping("/deleteInn")
     public ResponseEntity<?> deleteInn(@RequestBody InnInfoRequest innInfoRequest) {
-        LOGGER.info("ИНН : "+innInfoRequest.getInn()+" был успешно удалён из локальной базы данных вместе с ККТ и чеками.");
+        LOGGER.info("ИНН : " + innInfoRequest.getInn() + " был успешно удалён из локальной базы данных вместе с ККТ и чеками.");
         return innService.deleteInnByObj(innInfoRequest);
     }
 
     @PostMapping("/receipts")
-    public ResponseEntity<?> getReceipts(@RequestBody ReceiptRequest receiptRequest){
-        ResponseEntity<?> responseEntity = new ResponseEntity<>(receiptService.getReceiptsByDate(receiptRequest.getDate(),receiptRequest.getId()).toString(),HttpStatus.OK);
+    public ResponseEntity<?> getReceipts(@RequestBody ReceiptRequest receiptRequest) {
+        ResponseEntity<?> responseEntity = new ResponseEntity<>(receiptService.getReceiptsByDate(receiptRequest.getDate(), receiptRequest.getId()).toString(), HttpStatus.OK);
         LOGGER.info("Чеки собраны.");
         return responseEntity;
     }

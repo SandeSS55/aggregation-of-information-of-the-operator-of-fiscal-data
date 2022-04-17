@@ -1,5 +1,39 @@
+//import * as schedule from "node-schedule";
+
 let thisInn;
 let showFlag = false;
+
+//const job = schedule.scheduleJob('0 1 * * * *', checkUpdating());
+
+function checkUpdating() {
+    var xhr = new XMLHttpRequest();
+    var url = "/shifts/isUpdate";
+    xhr.open("GET", url, true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.send();
+    xhr.onreadystatechange = function () {
+
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            /*[0] - kktService.isErr(),[1] - kktService.isUpdating(),[2] - receiptService.isErr(),[3] - receiptService.isUpdating()*/
+            let bools = JSON.parse(xhr.responseText);
+
+            if (bools[1] === true || bools[3] === true) {
+                document.getElementById('baseUpdateLoading').style.display = 'flex';
+                document.getElementById("err").style.display = 'none';
+                document.getElementById("accept").style.display = 'none';
+            } else if (bools[1] === false && bools[3] === false) {
+                document.getElementById('baseUpdateLoading').style.display = 'none';
+                if (bools[0] === false && bools[2] === false) {
+                    document.getElementById("accept").style.display = 'inline-block';
+                    document.getElementById("err").style.display = 'none';
+                } else {
+                    document.getElementById("accept").style.display = 'none';
+                    document.getElementById("err").style.display = 'inline-block';
+                }
+            }
+        }
+    }
+}
 
 function showKKTs(kktset, inn) {
     document.getElementById('main').innerHTML = '';
@@ -11,7 +45,11 @@ function showKKTs(kktset, inn) {
 
     //Вывод вспомогательного header'а для выбора всех касс разом и поиску по адресу касс
     document.getElementById('main').innerHTML += "<header class=footerLike>" +
-        "<input type=\"checkbox\" id='select-all'/><input type=\"text\" id=\"search\" onkeyup=\"searchEngine()\" placeholder=\"Поиск по адресу\"></header>"
+        "<input type=\"checkbox\" id='select-all'/><input type=\"text\" id=\"search\" onkeyup=\"searchEngine()\" placeholder=\"Поиск по адресу\"></header>";
+
+
+    checkUpdating();
+
 
     //Вывод касс
     for (let i = check.length - 1; i >= 0; i--) {
@@ -44,9 +82,9 @@ function showKKTs(kktset, inn) {
         }
     }
 
+
     //Вывод кнопки обновления в header
-    document.getElementById('header').innerHTML += "<button class='button update' id='btnUpdate' name=post  onclick=document.getElementById('blurBackground').style.display='flex';" +
-        "document.getElementById('update').style.display='flex';>Обновить текущую базу данных</button>";
+    document.getElementById('header').innerHTML += "<div class='baseState'><div class=\"statusBaseState\"><img src=\"../error.png\" id=\"err\" title=\"При загрузке/обновлении базы произошла ошибка. Перезапустите обновление, либо пересоздайте базу.\" class=\"img\"><img src=\"../accept.png\" title=\"База загружена и актуальна\" id=\"accept\" class=\"img\"><section class=\"lds-dual-ring-status\" title=\"Идёт загрузка/обновление базы инн/ккт/чеков\" id=\"baseUpdateLoading\" style=\"display: none;\"></section></div><button class='button update' id='btnUpdate' name=post  onclick=document.getElementById('blurBackground').style.display='flex';document.getElementById('update').style.display='flex';>Обновить текущую базу данных</button></div>";
 
     // Чтобы не было 100500 касс, если много раз кликать по блоку ИНН
     if (showFlag === false) {
@@ -159,17 +197,17 @@ function createDayReport(values) {
     });
     xhr.send(data);
     xhr.onreadystatechange = function () {
-            if (xhr.readyState === 4 && xhr.status === 200) {
-                closeBtn2('day');
-                document.getElementById('dayLoading').style.display = 'none';
-                let p = document.createElement('p');
-                p.id = 'response';
-                document.getElementById('day').appendChild(p);
-                let str = JSON.parse(xhr.responseText);
-                document.getElementById('response').innerHTML += str[0];
-                window.open('shifts/reports/'+str[1], '_blank').focus();
-            }
-        };
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            closeBtn2('day');
+            document.getElementById('dayLoading').style.display = 'none';
+            let p = document.createElement('p');
+            p.id = 'response';
+            document.getElementById('day').appendChild(p);
+            let str = JSON.parse(xhr.responseText);
+            document.getElementById('response').innerHTML += str[0];
+            window.open('shifts/reports/' + str[1], '_blank').focus();
+        }
+    };
 }
 
 function createWeekReport(values) {
@@ -189,8 +227,8 @@ function createWeekReport(values) {
             p.id = 'response';
             document.getElementById('week').appendChild(p);
             let str = JSON.parse(xhr.responseText);
-                            document.getElementById('response').innerHTML += str[0];
-                            window.open('shifts/reports/'+str[1], '_blank').focus();
+            document.getElementById('response').innerHTML += str[0];
+            window.open('shifts/reports/' + str[1], '_blank').focus();
 
         }
     };
@@ -219,8 +257,8 @@ function createMonthReport(values) {
             p.id = 'response';
             document.getElementById('month').appendChild(p);
             let str = JSON.parse(xhr.responseText);
-                            document.getElementById('response').innerHTML += str[0];
-                            window.open('shifts/reports/'+str[1], '_blank').focus();
+            document.getElementById('response').innerHTML += str[0];
+            window.open('shifts/reports/' + str[1], '_blank').focus();
         }
     };
     var data = JSON.stringify({
@@ -248,8 +286,8 @@ function createYearReport(values) {
             p.id = 'response';
             document.getElementById('year').appendChild(p);
             let str = JSON.parse(xhr.responseText);
-                            document.getElementById('response').innerHTML += str[0];
-                            window.open('shifts/reports/'+str[1], '_blank').focus();
+            document.getElementById('response').innerHTML += str[0];
+            window.open('shifts/reports/' + str[1], '_blank').focus();
         }
     };
     var data = JSON.stringify({
@@ -305,8 +343,8 @@ function createPeriodReport(from, to, values) {
             p.id = 'response';
             document.getElementById('period').appendChild(p);
             let str = JSON.parse(xhr.responseText);
-                            document.getElementById('response').innerHTML += str[0];
-                            window.open('shifts/reports/'+str[1], '_blank').focus();
+            document.getElementById('response').innerHTML += str[0];
+            window.open('shifts/reports/' + str[1], '_blank').focus();
         }
     };
 }

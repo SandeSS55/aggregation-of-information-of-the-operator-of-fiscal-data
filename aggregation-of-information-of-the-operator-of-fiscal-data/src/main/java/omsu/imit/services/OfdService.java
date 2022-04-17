@@ -1,7 +1,6 @@
 package omsu.imit.services;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import omsu.imit.models.Receipt;
 import omsu.imit.models.User;
@@ -15,6 +14,7 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletResponse;
@@ -43,6 +43,8 @@ public class OfdService {
     @Autowired
     private ReceiptService receiptService;
 
+    private final AtomicInteger tries = new AtomicInteger(1);
+
     Gson gson = new Gson();
 
     private final Logger LOGGER = LoggerFactory.getLogger(OfdService.class);
@@ -54,12 +56,12 @@ public class OfdService {
     public ResponseEntity<String> getPostsPlainJSON(String url) {
         try {
             return this.restTemplate.getForEntity(url, String.class);
-        } catch (HttpClientErrorException ex) {
+        } catch (HttpClientErrorException | HttpServerErrorException ex) {
             return new ResponseEntity<>(ex.getMessage(), ex.getStatusCode());
         }
     }
 
-    public JsonObject loginPostPlainJSON() {
+    public ResponseEntity<?> loginPostPlainJSON() {
         User user = userService.getUser();
 
         HttpHeaders headers = new HttpHeaders();
@@ -75,19 +77,29 @@ public class OfdService {
         try {
             ResponseEntity<String> jsonObjectResponseEntity = this.restTemplate.postForEntity
                     ("https://ofd.ru/api/Authorization/CreateAuthToken", entity, String.class);
-            if (Objects.requireNonNull(jsonObjectResponseEntity).getStatusCode() == HttpStatus.OK) {
-                return gson.fromJson(jsonObjectResponseEntity.getBody(), JsonObject.class);
-            } else {
-                JsonArray body = gson.fromJson(jsonObjectResponseEntity.getBody(), JsonObject.class).getAsJsonArray("Errors");
-                LOGGER.error("Токен не был создан/обновлён по причине(ам):");
-                for (int i = 0; i < gson.fromJson(jsonObjectResponseEntity.getBody(), JsonObject.class).size(); i++) {
-                    LOGGER.error(body.get(i).getAsString());
-                }
-                return null;
-            }
+            return new ResponseEntity<>(gson.fromJson(jsonObjectResponseEntity.getBody(), JsonObject.class),HttpStatus.OK);
         } catch (HttpClientErrorException ex) {
-            return null;
+            if (ex.getStatusCode().is4xxClientError()) {
+                if (Objects.equals(ex.getMessage(), "")) {
+                    LOGGER.error("Токен не был создан/обновлён по причине(ам): Неправильно введены логин/пароль");
+                    return new ResponseEntity<>("Неправильно введены логин/пароль",HttpStatus.BAD_REQUEST);
+                } else {
+                    LOGGER.error("Токен не был создан/обновлён по причине(ам): " + ex.getMessage());
+                    return new ResponseEntity<>("Токен не был создан/обновлён по причине(ам): " + ex.getMessage(),HttpStatus.BAD_REQUEST);
+                }
+            }
+            if (ex.getStatusCode().is5xxServerError()) {
+                if (tries.get() < 3) {
+                    tries.getAndIncrement();
+                    loginPostPlainJSON();
+                } else {
+                    tries.getAndSet(0);
+                    LOGGER.error("Токен не был создан/обновлён по причине(ам): OFD.ru перегружен или недоступен");
+                    return new ResponseEntity<>("Токен не был создан/обновлён по причине(ам): OFD.ru перегружен или недоступен",HttpStatus.BAD_REQUEST);
+                }
+            }
         }
+        return null;
     }
 
     public ResponseEntity<?> createXls(LocalDateTime from, LocalDateTime to, List<String> kkts, HttpServletResponse response) throws IOException {
@@ -211,11 +223,12 @@ public class OfdService {
             try {
                 FileTime creationTime = (FileTime) Files.getAttribute(Path.of(s.getCanonicalPath()), "creationTime");
                 if (LocalDateTime.parse(creationTime.toString().substring(0, 19)).isBefore(LocalDateTime.now().minusDays(1))) {
-                    s.delete();
-                    count.getAndIncrement();
+                    if (s.delete()) {
+                        count.getAndIncrement();
+                    }
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                LOGGER.info(e.getLocalizedMessage());
             }
         });
         LOGGER.info("Очистка директории от устаревших файлов прошла успешно. Удалённых файлов: " + count.toString());
