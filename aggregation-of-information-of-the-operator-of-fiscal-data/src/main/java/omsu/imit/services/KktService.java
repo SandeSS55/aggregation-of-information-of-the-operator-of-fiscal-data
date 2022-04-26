@@ -3,6 +3,8 @@ package omsu.imit.services;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import omsu.imit.interfaces.HttpRequest;
+import omsu.imit.interfaces.IInn;
 import omsu.imit.models.Inn;
 import omsu.imit.models.Kkt;
 import omsu.imit.repo.KktCrudRepository;
@@ -21,6 +23,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 @Service
@@ -28,19 +31,16 @@ public class KktService {
 
     Gson gson = new Gson();
 
-    int attemptsCount = 0;
+    private final AtomicInteger attemptsCount = new AtomicInteger(1);
 
     @Autowired
     private KktCrudRepository kktCrudRepository;
 
     @Autowired
-    private UserService userService;
+    private HttpRequest httpRequest;
 
     @Autowired
-    private OfdService ofdService;
-
-    @Autowired
-    private InnService innService;
+    private IInn iInn;
 
     /**
      * Следующие два булева необходимы, чтобы
@@ -54,7 +54,7 @@ public class KktService {
     private final Logger LOGGER = LoggerFactory.getLogger(KktService.class);
 
     public List<Kkt> getAllKktByInn(long inn) {
-        return kktCrudRepository.getKkts(Objects.requireNonNull(innService.getInfoAboutCertainInn(inn).getBody()).getId());
+        return kktCrudRepository.getKkts(Objects.requireNonNull(iInn.getInfoAboutCertainInn(inn).getBody()).getId());
     }
 
     public Optional<Kkt> getKktByid(long id) {
@@ -66,12 +66,12 @@ public class KktService {
     }
 
 
-    public ResponseEntity<?> insertOrUpdateKktFromInn(long inn, boolean update) {
+    public ResponseEntity<?> insertOrUpdateKktFromInn(long inn, boolean update, String token) {
         try {
-            getIsUpdating().getAndSet(true);
-            ResponseEntity<String> responseEntity = ofdService.getPostsPlainJSON
-                    ("https://ofd.ru/api/integration/v1/inn/" + inn + "/kkts?AuthToken=+" + userService.login());
-            Inn main = innService.getInfoAboutCertainInn(inn).getBody();
+            isUpdating.getAndSet(true);
+            ResponseEntity<String> responseEntity = httpRequest.getPostsPlainJSON
+                    ("https://ofd.ru/api/integration/v1/inn/" + inn + "/kkts?AuthToken=+" + token);
+            Inn main = iInn.getInfoAboutCertainInn(inn).getBody();
             if (responseEntity.getStatusCode().is2xxSuccessful()) {
                 JsonArray kkts = gson.fromJson(responseEntity.getBody(), JsonObject.class).getAsJsonArray("Data");
                 if (kkts.size() > 0) {
@@ -85,7 +85,7 @@ public class KktService {
                                 obj.get("KktRegId").getAsString(),
                                 LocalDateTime.parse(obj.get("FirstDocumentDate").getAsString()),
                                 LocalDateTime.parse(obj.get("LastDocOnKktDateTime").getAsString()),
-                                null,
+                                LocalDateTime.now(),
                                 obj.get("FiscalAddress").getAsString(),
                                 obj.get("FiscalPlace").getAsString(),
                                 obj.get("KktModel").getAsString(),
@@ -99,7 +99,7 @@ public class KktService {
                                     if (kktCrudRepository.findByKktRegNumber(s.getKktRegNumber()) != null) {
                                         kktCrudRepository.updateKkt(s.getFnNumber(), s.getFnEndDate(),
                                                 s.getFiscalAddress(), s.getFiscalPlace(),
-                                                s.getLastDocOnOfdDateTime().toString(),
+                                                s.getLastDocOnOfdDateTime().toString(),LocalDateTime.now().toString(),
                                                 Long.parseLong(s.getKktRegNumber()));
                                     } else {
                                         kktCrudRepository.save(s);
@@ -107,15 +107,16 @@ public class KktService {
                                 }
                         );
                     }
-                    getIsUpdating().getAndSet(false);
-                    getIsErr().getAndSet(false);
+                    isUpdating.getAndSet(false);
+                    isErr.getAndSet(false);
                     LOGGER.info("ККТ были успешно обновлены в базе, очередь чеков.");
-                    attemptsCount = 0;
+                    attemptsCount.set(1);
                     return new ResponseEntity<>("ККТ были успешно обновлены в базе, очередь чеков.",
                             HttpStatus.OK);
                 } else {
-                    getIsUpdating().getAndSet(false);
-                    getIsErr().getAndSet(false);
+                    isUpdating.getAndSet(false);
+                    isErr.getAndSet(false);
+                    attemptsCount.set(1);
                     LOGGER.error("KKTService : За данным ИНН не было найдено никаких ККТ");
                     return new ResponseEntity<>("За данным ИНН не было найдено никаких ККТ",
                             HttpStatus.BAD_REQUEST);
@@ -128,19 +129,21 @@ public class KktService {
             for (int i = 0; i < err.getAsJsonArray("Errors").size(); i++) {
                 LOGGER.error(err.getAsJsonArray("Errors").get(i).getAsString());
             }
-            getIsUpdating().getAndSet(false);
-            getIsErr().getAndSet(true);
+            isUpdating.getAndSet(false);
+            isErr.getAndSet(true);
+            attemptsCount.set(1);
             return new ResponseEntity<>("Запрос не вернул статус 'Success'", HttpStatus.BAD_REQUEST);
         } catch (HttpServerErrorException ex) {
-            if (attemptsCount < 3 && ex.getStatusCode().is5xxServerError()) {
-                LOGGER.info("OFD.ru перегружен, попытка [" + (attemptsCount + 1) + "/3]");
-                attemptsCount++;
-                getIsErr().getAndSet(true);
-                insertOrUpdateKktFromInn(inn, update);
+            if (attemptsCount.get() <= 3 && ex.getStatusCode().is5xxServerError()) {
+                LOGGER.info("OFD.ru перегружен, попытка [" + (attemptsCount.get()) + "/3]");
+                attemptsCount.incrementAndGet();
+                isErr.getAndSet(true);
+                insertOrUpdateKktFromInn(inn, update, token);
             } else {
                 LOGGER.info("Запрос не вернул статус 'Success'");
-                getIsUpdating().getAndSet(false);
-                getIsUpdating().getAndSet(true);
+                isUpdating.getAndSet(false);
+                isErr.getAndSet(true);
+                attemptsCount.set(1);
                 return new ResponseEntity<>("Запрос не вернул статус 'Success'", HttpStatus.BAD_REQUEST);
             }
         }

@@ -7,6 +7,7 @@ import omsu.imit.dto.request.OfdTokenRequest;
 import omsu.imit.dto.request.ReceiptRequest;
 import omsu.imit.dto.request.ReportRequest;
 import omsu.imit.models.Inn;
+import omsu.imit.models.User;
 import omsu.imit.services.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +44,7 @@ public class ShiftController {
 
     @PostMapping("/addInn")
     public ResponseEntity<String> insertInn(@RequestBody InnInfoRequest innInfoRequest) throws JsonProcessingException {
-        ResponseEntity<?> responseEntity = innService.insertInn(innInfoRequest);
+        ResponseEntity<?> responseEntity = innService.insertInn(innInfoRequest,userService.login(),userService.getUser());
         if (responseEntity.getStatusCode() == HttpStatus.BAD_REQUEST) {
             return new ResponseEntity<>(HttpStatus.NOT_ACCEPTABLE);
         }
@@ -51,7 +52,7 @@ public class ShiftController {
         if (responseEntity.getStatusCode() == HttpStatus.BAD_REQUEST) {
             return new ResponseEntity<>(HttpStatus.NOT_ACCEPTABLE);
         }
-        responseEntity = insertReceiptsNoUpdate(innInfoRequest);
+        responseEntity = insertReceiptsNoUpdate(innInfoRequest,userService.login());
 
         return new ResponseEntity<String>((String) responseEntity.getBody(), HttpStatus.OK);
     }
@@ -62,9 +63,9 @@ public class ShiftController {
     }
 
     @PostMapping("/reports")
-    public ResponseEntity<?> createReport(@RequestBody ReportRequest reportRequest, HttpServletResponse response) throws IOException {
-        return ofdService.createXls(LocalDateTime.parse(reportRequest.getFrom()),
-                LocalDateTime.parse(reportRequest.getTo()), reportRequest.getKkts(), response);
+    public ResponseEntity<?> createReport(@RequestBody ReportRequest reportRequest) throws IOException {
+        return receiptService.createXls(LocalDateTime.parse(reportRequest.getFrom()),
+                LocalDateTime.parse(reportRequest.getTo()), reportRequest.getKkts());
     }
 
     @GetMapping(value = "/reports/{filename:.+}", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
@@ -81,13 +82,18 @@ public class ShiftController {
         }
     }
 
+
+    public User getUser(){
+        return userService.getUser();
+    }
+
     @GetMapping("/update")
     @Async
     @Scheduled(fixedDelay = 3600000, initialDelay = 3600000)
-    public ResponseEntity<?> updateBase() throws JsonProcessingException {
+    public ResponseEntity<?> updateBase() {
         for (Inn inn : Objects.requireNonNull(innService.getInfoAboutAllInn().getBody())) {
-            kktService.insertOrUpdateKktFromInn(inn.getInn(), true);
-            insertReceiptsFromUpdate(inn.getInn());
+            kktService.insertOrUpdateKktFromInn(inn.getInn(), true,userService.login());
+            insertReceiptsFromUpdate(inn.getInn(),userService.login());
         }
         return new ResponseEntity<>("Все ИНН, ККТ были успешно обновлены. Добавлены новые чеки.", HttpStatus.OK);
     }
@@ -107,26 +113,31 @@ public class ShiftController {
 
     @PostMapping("/deleteInn")
     public ResponseEntity<?> deleteInn(@RequestBody InnInfoRequest innInfoRequest) {
+        Inn inn = innService.getInfoAboutCertainInn(innInfoRequest.getInn()).getBody();
+        Objects.requireNonNull(inn).getKktSet().forEach(s -> receiptService.deleteAllReceiptByKkt(s.getId()));
+        kktService.deleteAllKktByInn(inn.getId());
         LOGGER.info("ИНН : " + innInfoRequest.getInn() + " был успешно удалён из локальной базы данных вместе с ККТ и чеками.");
         return innService.deleteInnByObj(innInfoRequest);
     }
 
     @PostMapping("/receipts")
     public ResponseEntity<?> getReceipts(@RequestBody ReceiptRequest receiptRequest) {
-        ResponseEntity<?> responseEntity = new ResponseEntity<>(receiptService.getReceiptsByDate(receiptRequest.getDate(), receiptRequest.getId()).toString(), HttpStatus.OK);
+        ResponseEntity<?> responseEntity = new ResponseEntity<>(
+                receiptService.getReceiptsByDate(receiptRequest.getDate(),kktService.getKktByid(receiptRequest.getId())).toString(), HttpStatus.OK);
         LOGGER.info("Чеки собраны.");
         return responseEntity;
     }
 
     public ResponseEntity<?> insertKKTs(long inn) {
-        return kktService.insertOrUpdateKktFromInn(inn, false);
+        return kktService.insertOrUpdateKktFromInn(inn, false,userService.login());
     }
 
-    public ResponseEntity<?> insertReceiptsNoUpdate(InnInfoRequest innInfoRequest) throws JsonProcessingException {
-        return receiptService.insertReceiptsFromInn(innInfoRequest.getInn(), false, innInfoRequest.getStartFrom());
+    public ResponseEntity<?> insertReceiptsNoUpdate(InnInfoRequest innInfoRequest, String token) {
+        return receiptService.insertReceiptsFromInn(innInfoRequest.getInn(), false, token, innInfoRequest.getStartFrom(),
+                kktService.getAllKktByInn(innInfoRequest.getInn()));
     }
 
-    public ResponseEntity<?> insertReceiptsFromUpdate(long inn) throws JsonProcessingException {
-        return receiptService.insertReceiptsFromInn(inn, true, null);
+    public ResponseEntity<?> insertReceiptsFromUpdate(long inn, String token) {
+        return receiptService.insertReceiptsFromInn(inn, true, token, null,kktService.getAllKktByInn(inn));
     }
 }

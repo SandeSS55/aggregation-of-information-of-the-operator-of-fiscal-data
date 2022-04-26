@@ -70,9 +70,11 @@
         <button class="closeBtn" name="close" onclick="closeBtn('addInn','addInnLoading','addInnBtn')">X</button>
         <form id="innAdd">
             <label for="name">Название:</label><br>
-            <input type="text" id="name" name="name"><br>
+            <input type="text" id="name" name="name" required><br>
             <label for="inn">Инн:</label><br>
-            <input type="text" id="inn" name="inn">
+            <input type="text" id="inn" name="inn" required><br>
+            <label for="innAddFrom">Начальная дата чеков:</label><br>
+            <input type="datetime-local" id="innAddFrom" name="innAddFrom" required>
         </form>
         <br>
         <h1>Предупреждение</h1>
@@ -82,7 +84,10 @@
             Вся процедура может занят некоторое время, которое зависит от количества чеков, сохранённых на стороне OFD.ru<br>
             Продолжить?</p>
         <section class="lds-dual-ring" id="addInnLoading" style="display: none"></section>
-        <button class="button report" name="addInn" id="addInnBtn" onclick="addInnButton()">Продолжить</button>
+        <script th:line="javascript">
+                    document.getElementById("innAdd").addEventListener('submit', (event) => {event.preventDefault()});
+        </script>
+        <button class="button report" form="innAdd" type="submit" name="addInn" id="addInnBtn" onclick="addInnButton()">Продолжить</button>
     </div>
     <div id="period">
         <button class="closeBtn" name="close" onclick="closeBtn('period','periodLoading','periodBtn')">X</button>

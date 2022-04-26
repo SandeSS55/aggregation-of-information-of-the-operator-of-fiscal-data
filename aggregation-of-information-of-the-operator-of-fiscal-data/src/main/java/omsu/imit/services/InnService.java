@@ -2,10 +2,11 @@ package omsu.imit.services;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import lombok.Getter;
-import lombok.Setter;
+import omsu.imit.interfaces.HttpRequest;
 import omsu.imit.dto.request.InnInfoRequest;
+import omsu.imit.interfaces.IInn;
 import omsu.imit.models.Inn;
+import omsu.imit.models.User;
 import omsu.imit.repo.InnCrudRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,27 +17,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
-@Getter
-@Setter
-public class InnService {
+public class InnService implements IInn {
     @Autowired
     private InnCrudRepository innCrudRepository;
 
     @Autowired
-    private KktService kktService;
+    private HttpRequest httpRequest;
 
-    @Autowired
-    private OfdService ofdService;
 
-    @Autowired
-    private UserService userService;
-
-    @Autowired
-    private ReceiptService receiptService;
-
-    int errCount;
+    private final AtomicInteger errCount = new AtomicInteger(1);
 
     Gson gson = new Gson();
 
@@ -58,9 +50,6 @@ public class InnService {
         if (innInfoRequest.getInn() <= 0 || innCrudRepository.findByInn(innInfoRequest.getInn()) == null) {
             return new ResponseEntity<>("Данные введены неправильно!", HttpStatus.BAD_REQUEST);
         }
-        Inn inn = innCrudRepository.findByInn(innInfoRequest.getInn());
-        inn.getKktSet().forEach(s -> receiptService.deleteAllReceiptByKkt(s.getId()));
-        kktService.deleteAllKktByInn(inn.getId());
         innCrudRepository.delete(innInfoRequest.getInn());
         return new ResponseEntity<>("Удаление ИНН по объекту прошло успешно!", HttpStatus.OK);
     }
@@ -79,7 +68,7 @@ public class InnService {
 
     }
 
-    public ResponseEntity<?> insertInn(InnInfoRequest innInfoRequest) {
+    public ResponseEntity<?> insertInn(InnInfoRequest innInfoRequest, String token, User user) {
 
         if (innInfoRequest.getInn() <= 0 || innInfoRequest.getName() == null || innInfoRequest.getName().isEmpty()) {
             return new ResponseEntity<>("Данные введены неправильно!", HttpStatus.BAD_REQUEST);
@@ -90,35 +79,39 @@ public class InnService {
         }
 
         try {
-            ResponseEntity<String> responseEntity = ofdService.getPostsPlainJSON("https://ofd.ru/api/integration/v1/inn/" +
-                    innInfoRequest.getInn() + "/kkts?AuthToken=" + userService.login());
+            ResponseEntity<String> responseEntity = httpRequest.getPostsPlainJSON("https://ofd.ru/api/integration/v1/inn/" +
+                    innInfoRequest.getInn() + "/kkts?AuthToken=" + token);
             if (responseEntity.getStatusCode().is2xxSuccessful()) {
                 if (innInfoRequest.getStartFrom() != null) {
-                    innCrudRepository.insertNewInn(innInfoRequest.getInn(), innInfoRequest.getName(), innInfoRequest.getStartFrom(), userService.getUser());
+                    innCrudRepository.insertNewInn(innInfoRequest.getInn(), innInfoRequest.getName(), innInfoRequest.getStartFrom(), user);
                 } else {
-                    innCrudRepository.insertNewInn(innInfoRequest.getInn(), innInfoRequest.getName(), null, userService.getUser());
+                    innCrudRepository.insertNewInn(innInfoRequest.getInn(), innInfoRequest.getName(), null, user);
                 }
                 LOGGER.info("ИНН:" + innInfoRequest.getInn() + " был успешно добавлен в базу, но привязанные ККТ и Чеки в процессе добавления.");
-
+                errCount.getAndSet(1);
                 return new ResponseEntity<>(innInfoRequest.getInn(), HttpStatus.OK);
             }
         } catch (HttpClientErrorException ex) {
             if (gson.fromJson(ex.getMessage(), JsonObject.class).has("Errors") && gson.fromJson(ex.getMessage(), JsonObject.class).getAsJsonArray("Errors").get(0).getAsString().equals("InnNotFound")) {
                 LOGGER.error("InnService insertUser : ИНН не найден на данной учётной записи!");
+                errCount.getAndSet(1);
                 return new ResponseEntity<>("Такой ИНН не закреплён за данной учётной записью!", HttpStatus.BAD_REQUEST);
             }
             if (gson.fromJson(ex.getMessage(), JsonObject.class).has("Data") && gson.fromJson(ex.getMessage(), JsonObject.class).getAsJsonArray("Data").size() < 1) {
                 LOGGER.error("InnService insertUser : У данного ИНН не было найдено ни одного ККТ в базе");
+                errCount.getAndSet(1);
                 return new ResponseEntity<>(" У данного ИНН не было найдено ни одного ККТ в базе", HttpStatus.BAD_REQUEST);
             }
 
             if (ex.getStatusCode().isError())
-                if (getErrCount() < 3) {
-                    LOGGER.info("OFD.ru перегружен, попытка ["+(getErrCount()+1)+"/3]");
-                    setErrCount(getErrCount()+1);
-                    return insertInn(innInfoRequest);
+                if (errCount.get() < 3) {
+                    LOGGER.info("OFD.ru перегружен, попытка [" + (errCount.get() + 1) + "/3]");
+                    errCount.getAndIncrement();
+                    return insertInn(innInfoRequest,token,user);
                 } else {
+                    errCount.getAndSet(1);
                     LOGGER.error("OFD.ru перегружен или не отвечает долгое время. Нужно повторить попытку позже. Либо, я не уследил за ошибкой, и вы неверно ввели данные...");
+                    return new ResponseEntity<>("OFD.ru перегружен или не отвечает долгое время.", HttpStatus.BAD_REQUEST);
                 }
         }
         return null;

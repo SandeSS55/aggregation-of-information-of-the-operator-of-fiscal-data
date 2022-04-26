@@ -1,0 +1,517 @@
+@startuml
+
+title __AGGREGATION-OF-INFORMATION-OF-THE-OPERATOR-OF-FISCAL-DATA's Class Diagram__\n
+
+    namespace omsu.imit {
+        class omsu.imit.BaseInitializer {
+            - LOGGER : Logger
+            - inn : String[]
+            - login : String
+            - password : String
+            - startDate : String
+            + BaseInitializer()
+            + BaseInitializer()
+            + getInn()
+            + getLOGGER()
+            + getLogin()
+            + getPassword()
+            + getShiftController()
+            + getStartDate()
+            + getUserService()
+            + init()
+            + setInn()
+            + setLogin()
+            + setPassword()
+            + setShiftController()
+            + setStartDate()
+            + setUserService()
+        }
+      }
+
+
+      namespace omsu.imit {
+        class omsu.imit.LocalDateTimeDeserializer {
+            + deserialize()
+        }
+      }
+
+
+      namespace omsu.imit {
+        class omsu.imit.LocalDateTimeSerializer {
+            + serialize()
+        }
+      }
+
+
+      namespace omsu.imit {
+        class omsu.imit.MySQLCustomDialect {
+            + getTableTypeString()
+        }
+      }
+
+
+      namespace omsu.imit {
+        class omsu.imit.OfdAppApplication {
+            {static} + main()
+        }
+      }
+
+
+    namespace omsu.imit {
+      namespace conf {
+        class omsu.imit.conf.Configuration {
+        }
+      }
+    }
+
+
+    namespace omsu.imit {
+        namespace controllers {
+          class omsu.imit.controllers.FrontController {
+              + main()
+              + welcome()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace controllers {
+          class omsu.imit.controllers.ShiftController {
+              - LOGGER : Logger
+              + createReport()
+              + deleteInn()
+              + deleteOldReports()
+              + getFile()
+              + getReceipts()
+              + insertInn()
+              + insertKKTs()
+              + insertReceiptsFromUpdate()
+              + insertReceiptsNoUpdate()
+              + insertUser()
+              + isBaseUpdating()
+              + updateBase()
+          }
+        }
+      }
+
+
+    namespace omsu.imit {
+        namespace dto.request {
+          class omsu.imit.dto.request.InnInfoRequest {
+              - inn : long
+              - name : String
+              - startFrom : LocalDateTime
+              + InnInfoRequest()
+              + InnInfoRequest()
+              + getInn()
+              + getName()
+              + getStartFrom()
+              + setInn()
+              + setName()
+              + setStartFrom()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace dto.request {
+          class omsu.imit.dto.request.OfdTokenRequest {
+              - Login : String
+              - Password : String
+              + OfdTokenRequest()
+              + getLogin()
+              + getPassword()
+              + setLogin()
+              + setPassword()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace dto.request {
+          class omsu.imit.dto.request.ReceiptRequest {
+              - date : String
+              - id : long
+              + ReceiptRequest()
+              + ReceiptRequest()
+              + getDate()
+              + getId()
+              + setDate()
+              + setId()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace dto.request {
+          class omsu.imit.dto.request.ReportRequest {
+              - from : String
+              - kkts : List<String>
+              - to : String
+              + ReportRequest()
+              + ReportRequest()
+              + getFrom()
+              + getKkts()
+              + getTo()
+              + setFrom()
+              + setKkts()
+              + setTo()
+          }
+        }
+      }
+
+
+    namespace omsu.imit {
+        namespace interfaces {
+          interface omsu.imit.interfaces.HttpRequest {
+              {abstract} + getPostsPlainJSON()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace interfaces {
+          interface omsu.imit.interfaces.IInn {
+              {abstract} + getInfoAboutCertainInn()
+          }
+        }
+      }
+
+
+    namespace omsu.imit {
+        namespace models {
+          class omsu.imit.models.Inn {
+              - id : long
+              - inn : long
+              - kktSet : Set<Kkt>
+              - name : String
+              - startLoadDate : LocalDateTime
+              + Inn()
+              + Inn()
+              + getId()
+              + getInn()
+              + getKktSet()
+              + getName()
+              + getStartLoadDate()
+              + getUser()
+              + setId()
+              + setInn()
+              + setKktSet()
+              + setName()
+              + setStartLoadDate()
+              + setUser()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace models {
+          class omsu.imit.models.Kkt {
+              - FirstDocumentDate : LocalDateTime
+              - FiscalAddress : String
+              - FiscalPlace : String
+              - FnEndDate : String
+              - KktModel : String
+              - LastDocOnOfdDateTime : LocalDateTime
+              - LastTimeUpdated : LocalDateTime
+              - fnNumber : String
+              - id : long
+              - kktNumber : String
+              - kktRegNumber : String
+              - receiptSet : Set<Receipt>
+              + Kkt()
+              + Kkt()
+              + Kkt()
+              + getFirstDocumentDate()
+              + getFiscalAddress()
+              + getFiscalPlace()
+              + getFnEndDate()
+              + getFnNumber()
+              + getId()
+              + getInn()
+              + getKktModel()
+              + getKktNumber()
+              + getKktRegNumber()
+              + getLastDocOnOfdDateTime()
+              + getLastTimeUpdated()
+              + getReceiptSet()
+              + setFirstDocumentDate()
+              + setFiscalAddress()
+              + setFiscalPlace()
+              + setFnEndDate()
+              + setFnNumber()
+              + setId()
+              + setInn()
+              + setKktModel()
+              + setKktNumber()
+              + setKktRegNumber()
+              + setLastDocOnOfdDateTime()
+              + setLastTimeUpdated()
+              + setReceiptSet()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace models {
+          class omsu.imit.models.Receipt {
+              - CDateUtc : LocalDateTime
+              - CashSumm : int
+              - Depth : int
+              - DocDateTime : LocalDateTime
+              - DocNumber : int
+              - ECashSumm : int
+              - FnsStatus : String
+              - IsCorrection : boolean
+              - OperationType : String
+              - ReceiptNumber : int
+              - ShiftNumber : int
+              - Tag : int
+              - TotalSumm : int
+              - id : Long
+              - rawJson : String
+              + Receipt()
+              + Receipt()
+              + Receipt()
+              + getCDateUtc()
+              + getCashSumm()
+              + getDepth()
+              + getDocDateTime()
+              + getDocNumber()
+              + getECashSumm()
+              + getFnsStatus()
+              + getId()
+              + getKkt()
+              + getOperationType()
+              + getRawJson()
+              + getReceiptNumber()
+              + getShiftNumber()
+              + getTag()
+              + getTotalSumm()
+              + isIsCorrection()
+              + setCDateUtc()
+              + setCashSumm()
+              + setDepth()
+              + setDocDateTime()
+              + setDocNumber()
+              + setECashSumm()
+              + setFnsStatus()
+              + setId()
+              + setIsCorrection()
+              + setKkt()
+              + setOperationType()
+              + setRawJson()
+              + setReceiptNumber()
+              + setShiftNumber()
+              + setTag()
+              + setTotalSumm()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace models {
+          class omsu.imit.models.User {
+              - ExpirationDate : LocalDateTime
+              - id : long
+              - innSet : Set<Inn>
+              - login : String
+              - password : String
+              - token : String
+              + User()
+              + User()
+              + getExpirationDate()
+              + getId()
+              + getInnSet()
+              + getLogin()
+              + getPassword()
+              + getToken()
+              + setExpirationDate()
+              + setId()
+              + setInnSet()
+              + setLogin()
+              + setPassword()
+              + setToken()
+          }
+        }
+      }
+
+
+    namespace omsu.imit {
+        namespace repo {
+          interface omsu.imit.repo.InnCrudRepository {
+              {abstract} + delete()
+              {abstract} + findAll()
+              {abstract} + findByInn()
+              {abstract} + insertNewInn()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace repo {
+          interface omsu.imit.repo.KktCrudRepository {
+              {abstract} + deleteKktByInn()
+              {abstract} + findByKktRegNumber()
+              {abstract} + getKkts()
+              {abstract} + insertKkt()
+              {abstract} + updateKkt()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace repo {
+          interface omsu.imit.repo.ReceiptsCrudRepository {
+              {abstract} + addReceipt()
+              {abstract} + deleteAllReceiptsByKkt()
+              {abstract} + findByKkt()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace repo {
+          interface omsu.imit.repo.UserCrudRepository {
+              {abstract} + addUser()
+              {abstract} + alterTableOne()
+              {abstract} + findById()
+              {abstract} + updateUser()
+          }
+        }
+      }
+
+
+    namespace omsu.imit {
+        namespace services {
+          class omsu.imit.services.InnService {
+              ~ gson : Gson
+              - LOGGER : Logger
+              - errCount : AtomicInteger
+              + amountOfInn()
+              + deleteAllInn()
+              + deleteInnById()
+              + deleteInnByObj()
+              + getInfoAboutAllInn()
+              + getInfoAboutCertainInn()
+              + insertInn()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace services {
+          class omsu.imit.services.KktService {
+              ~ gson : Gson
+              - LOGGER : Logger
+              - attemptsCount : AtomicInteger
+              - isErr : AtomicBoolean
+              - isUpdating : AtomicBoolean
+              + deleteAllKktByInn()
+              + getAllKktByInn()
+              + getIsErr()
+              + getIsUpdating()
+              + getKktByid()
+              + insertOrUpdateKktFromInn()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace services {
+          class omsu.imit.services.OfdService {
+              - LOGGER : Logger
+              - restTemplate : RestTemplate
+              + OfdService()
+              + deleteOldReports()
+              + getPostsPlainJSON()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace services {
+          class omsu.imit.services.ReceiptService {
+              ~ gson : Gson
+              ~ mapper : ObjectMapper
+              - LOGGER : Logger
+              - amountOfTries : AtomicInteger
+              - isErr : AtomicBoolean
+              - isUpdating : AtomicBoolean
+              + createXls()
+              + deleteAllReceiptByKkt()
+              + findAllReceipt()
+              + getIsErr()
+              + getIsUpdating()
+              + getReceiptsByDate()
+              + insertReceiptsFromInn()
+          }
+        }
+      }
+
+
+      namespace omsu.imit {
+        namespace services {
+          class omsu.imit.services.UserService {
+              - LOGGER : Logger
+              - restTemplate : RestTemplate
+              - tries : AtomicInteger
+              + UserService()
+              + addUser()
+              + getUser()
+              + login()
+              + loginPostPlainJSON()
+              + updateUser()
+          }
+        }
+      }
+  
+
+  omsu.imit.BaseInitializer o-- omsu.imit.controllers.ShiftController : shiftController
+  omsu.imit.LocalDateTimeDeserializer -up-|> com.fasterxml.jackson.databind.JsonDeserializer
+  omsu.imit.LocalDateTimeSerializer -up-|> com.fasterxml.jackson.databind.JsonSerializer
+  omsu.imit.MySQLCustomDialect -up-|> org.hibernate.dialect.MySQL57Dialect
+  omsu.imit.controllers.FrontController o-- omsu.imit.services.InnService : innService
+  omsu.imit.controllers.FrontController o-- omsu.imit.services.UserService : userService
+  omsu.imit.controllers.ShiftController o-- omsu.imit.services.InnService : innService
+  omsu.imit.controllers.ShiftController o-- omsu.imit.services.KktService : kktService
+  omsu.imit.controllers.ShiftController o-- omsu.imit.services.OfdService : ofdService
+  omsu.imit.controllers.ShiftController o-- omsu.imit.services.ReceiptService : receiptService
+  omsu.imit.controllers.ShiftController o-- omsu.imit.services.UserService : userService
+  omsu.imit.models.Inn *-- omsu.imit.models.User : user
+  omsu.imit.models.Kkt *-- omsu.imit.models.Inn : inn
+  omsu.imit.models.Receipt *-- omsu.imit.models.Kkt : kkt
+  omsu.imit.services.InnService .up.|> omsu.imit.interfaces.IInn
+  omsu.imit.services.InnService o-- omsu.imit.interfaces.HttpRequest : httpRequest
+  omsu.imit.services.InnService o-- omsu.imit.repo.InnCrudRepository : innCrudRepository
+  omsu.imit.services.KktService o-- omsu.imit.interfaces.HttpRequest : httpRequest
+  omsu.imit.services.KktService o-- omsu.imit.interfaces.IInn : iInn
+  omsu.imit.services.KktService o-- omsu.imit.repo.KktCrudRepository : kktCrudRepository
+  omsu.imit.services.OfdService .up.|> omsu.imit.interfaces.HttpRequest
+  omsu.imit.services.ReceiptService o-- omsu.imit.interfaces.HttpRequest : httpRequest
+  omsu.imit.services.ReceiptService o-- omsu.imit.repo.ReceiptsCrudRepository : receiptsCrudRepository
+  omsu.imit.services.UserService o-- omsu.imit.repo.UserCrudRepository : userCrudRepository
+
+
+right footer
+
+
+PlantUML diagram generated by SketchIt! (https://bitbucket.org/pmesmeur/sketch.it)
+For more information about this tool, please contact philippe.mesmeur@gmail.com
+endfooter
+
+@enduml

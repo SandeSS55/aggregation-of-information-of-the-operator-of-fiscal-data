@@ -146,8 +146,14 @@ function addUserButton() {
 function addInnButton() {
     let name = document.getElementById('addInn').querySelector('input[name="name"]').value;
     let inn = document.getElementById('addInn').querySelector('input[name="inn"]').value;
+    let from = document.getElementById('innAddFrom').value;
     if (name !== '' && name !== null && inn !== '' && inn !== null) {
-        addInn(name, inn);
+        if(from!==null && from!==''){
+        addInn(name, inn,from);
+        }
+        else{
+        addInn(name,inn, null);
+        }
     }
 }
 
@@ -349,7 +355,7 @@ function createPeriodReport(from, to, values) {
     };
 }
 
-function addInn(name, inn) {
+function addInn(name, inn,from) {
     document.getElementById('addInnBtn').style.display = 'none';
     document.getElementById('addInnLoading').style.display = 'flex';
     var xhr = new XMLHttpRequest();
@@ -374,7 +380,8 @@ function addInn(name, inn) {
     };
     var data = JSON.stringify({
         "name": name.toString(),
-        "inn": inn.toString()
+        "inn": inn.toString(),
+        "from":from.toString()
     });
     xhr.send(data);
 }

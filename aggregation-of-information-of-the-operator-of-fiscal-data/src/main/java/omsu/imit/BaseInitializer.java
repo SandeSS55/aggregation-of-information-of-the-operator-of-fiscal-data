@@ -21,8 +21,6 @@ import java.time.LocalDateTime;
 @Component
 @AllArgsConstructor
 @NoArgsConstructor
-@Getter
-@Setter
 public class BaseInitializer {
 
     @Value("${user.login}")
@@ -37,14 +35,11 @@ public class BaseInitializer {
     @Autowired
     private ShiftController shiftController;
 
-    @Autowired
-    private UserService userService;
-
     private final Logger LOGGER = LoggerFactory.getLogger(BaseInitializer.class);
 
     @PostConstruct
     public void init() throws JsonProcessingException {
-        if (userService.getUser() == null) {
+        if (shiftController.getUser() == null) {
             if (login != null && !login.equals("") && password != null && !password.equals("")) {
                 if (shiftController.insertUser(new OfdTokenRequest(login, password)).getStatusCode().is2xxSuccessful()) {
                     if (inn.length > 0) {

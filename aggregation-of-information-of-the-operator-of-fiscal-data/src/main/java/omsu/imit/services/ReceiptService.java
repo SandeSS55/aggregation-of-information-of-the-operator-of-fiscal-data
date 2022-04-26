@@ -10,9 +10,13 @@ import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import omsu.imit.interfaces.HttpRequest;
 import omsu.imit.models.Kkt;
 import omsu.imit.models.Receipt;
 import omsu.imit.repo.ReceiptsCrudRepository;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFFont;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +26,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -30,6 +40,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -40,13 +51,7 @@ public class ReceiptService {
     private ReceiptsCrudRepository receiptsCrudRepository;
 
     @Autowired
-    private KktService kktService;
-
-    @Autowired
-    private UserService userService;
-
-    @Autowired
-    private OfdService ofdService;
+    private HttpRequest httpRequest;
 
     ObjectMapper mapper = JsonMapper.builder()
             .addModule(new ParameterNamesModule())
@@ -64,7 +69,7 @@ public class ReceiptService {
     private final AtomicBoolean isUpdating = new AtomicBoolean(false);
     private final AtomicBoolean isErr = new AtomicBoolean(false);
 
-    private int amountOfTries = 0;
+    private final AtomicInteger amountOfTries = new AtomicInteger(1);
 
     private final Logger LOGGER = LoggerFactory.getLogger(ReceiptService.class);
 
@@ -77,17 +82,18 @@ public class ReceiptService {
                 .collect(Collectors.toList());
     }
 
-    public JsonArray getReceiptsByDate(String date, Long id) {
-        List<Optional<Kkt>> kkts = new ArrayList<>();
+    public JsonArray getReceiptsByDate(String date, Optional<Kkt> kkt) {
+        List<Kkt> kkts = new ArrayList<>();
 
-        if (kktService.getKktByid(id).isEmpty()) {
+        if (kkt.isEmpty()) {
             return new JsonArray();
         }
-        kkts.add(Optional.of(kktService.getKktByid(id).get()));
+
+        kkts.add(kkt.get());
         LocalDateTime from = LocalDate.parse(date).atTime(0, 0, 0);
 
-        List<Receipt> list = new ArrayList<>(findAllReceipt().stream().filter
-                (s -> kkts.contains(Optional.ofNullable(s.getKkt()))).filter(s -> s.getDocDateTime().isAfter(from) && s.getDocDateTime().isBefore(from.plusDays(1))).collect(Collectors.toList()));
+        List<Receipt> list = findAllReceipt().stream().filter
+                (s -> kkts.contains(s.getKkt())).filter(s -> s.getDocDateTime().isAfter(from) && s.getDocDateTime().isBefore(from.plusDays(1))).collect(Collectors.toList());
 
         JsonArray obj = new JsonArray();
         list.forEach(s -> {
@@ -191,11 +197,9 @@ public class ReceiptService {
         return arr;
     }
 
-    public ResponseEntity<?> insertReceiptsFromInn(long inn, boolean update, LocalDateTime startFrom) {
+    public ResponseEntity<?> insertReceiptsFromInn(long inn, boolean update,String token, LocalDateTime startFrom,List<Kkt> kktList) {
         try {
             getIsUpdating().getAndSet(true);
-            List<Kkt> kktList = kktService.getAllKktByInn(inn);
-            String token = userService.login();
             List<Receipt> receipts = new ArrayList<>();
             for (Kkt kkt : kktList) {
                 LocalDateTime from;
@@ -212,7 +216,7 @@ public class ReceiptService {
                 }
                 LocalDateTime to = kkt.getLastDocOnOfdDateTime();
                 while (from.isBefore(to)) {
-                    ResponseEntity<String> responseEntity = ofdService.getPostsPlainJSON(
+                    ResponseEntity<String> responseEntity = httpRequest.getPostsPlainJSON(
                             "https://ofd.ru/api/integration/v1/inn/" + inn + "/kkt/" + kkt.getKktRegNumber() +
                                     "/receipts-with-fpd-short?dateFrom=" + from.toString() +
                                     "&dateTo=" + from.plusDays(90) + "&AuthToken=" + token
@@ -250,11 +254,13 @@ public class ReceiptService {
             getIsUpdating().getAndSet(false);
             if (!update) {
                 LOGGER.info("Все чеки были успешно загружены в базу данных. Общее количество чеков: " + receiptsCrudRepository.count());
+                amountOfTries.set(1);
                 return new ResponseEntity<>("Все чеки были успешно загружены в базу данных. Общее количество чеков: " +
                         receiptsCrudRepository.count(), HttpStatus.OK);
             } else {
                 LOGGER.info("Все чеки были успешно загружены в базу данных во время обновления базы." +
                         " Общее количество чеков: " + receiptsCrudRepository.count());
+                amountOfTries.set(1);
                 return new ResponseEntity<>("Все чеки были успешно загружены в базу данных во время обновления базы." +
                         " Общее количество чеков: " + receiptsCrudRepository.count(), HttpStatus.OK);
             }
@@ -265,18 +271,130 @@ public class ReceiptService {
                 LOGGER.error(gson.fromJson(ex.getMessage(), JsonObject.class).getAsJsonArray("Errors").get(j).getAsString());
             }
             getIsUpdating().getAndSet(false);
+            amountOfTries.set(1);
             return new ResponseEntity<>("insertReceiptsFromInn : Ошибка при отправке запроса на чеки", HttpStatus.BAD_REQUEST);
         }catch (HttpServerErrorException ex){
-            if (getAmountOfTries() < 3) {
-                setAmountOfTries(getAmountOfTries() + 1);
+            if (amountOfTries.get() <= 3) {
+                amountOfTries.getAndIncrement();
                 getIsErr().getAndSet(true);
-                insertReceiptsFromInn(inn, update, startFrom);
+                insertReceiptsFromInn(inn, update,token, startFrom,kktList);
             } else {
                 getIsUpdating().getAndSet(false);
+                amountOfTries.set(1);
                 return new ResponseEntity<>("insertReceiptsFromInn : Ошибка при отправке запроса на чеки", HttpStatus.BAD_REQUEST);
             }
         }
         return new ResponseEntity<>("Произошла магия, и при добавлении чеков метод вернул это сообщение. Как так получилось?...", HttpStatus.BAD_REQUEST);
+    }
+
+    public ResponseEntity<?> createXls(LocalDateTime from, LocalDateTime to, List<String> kkts) throws IOException {
+
+        if (kkts.size() < 1) {
+            LOGGER.error("В базе не найдено ККТ для создания отчётов.");
+            return new ResponseEntity<>("В базе не найдено ККТ для создания отчётов.", HttpStatus.OK);
+        }
+
+        List<Receipt> receiptList = findAllReceipt().stream().filter
+                (s -> kkts.contains(s.getKkt().getKktRegNumber())).filter(s -> s.getDocDateTime().isAfter(from) && s.getDocDateTime().isBefore(to)).
+                sorted(((Comparator<Receipt>) (o1, o2) -> {
+                    return Long.compare(Long.parseLong(o1.getKkt().getKktRegNumber()), Long.parseLong(o2.getKkt().getKktRegNumber()));
+                }).thenComparingInt(Receipt::getDocNumber)).collect(Collectors.toList());
+
+        if (!Files.exists(Paths.get("../reports"), LinkOption.NOFOLLOW_LINKS)) {
+            if (new File("../reports").mkdirs()) {
+                LOGGER.info("Папка 'reports' была успешна создана в корневой папке сервиса OfdToExcel");
+            }
+        }
+
+        XSSFWorkbook workbook = new XSSFWorkbook();
+
+        Sheet shift = workbook.createSheet("Отчёт");
+
+        Row header = shift.createRow(0);
+
+        CellStyle headerStyle = workbook.createCellStyle();
+        headerStyle.setFillForegroundColor(IndexedColors.BLACK.getIndex());
+        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+        XSSFFont font = workbook.createFont();
+        font.setFontName("Arial");
+        font.setFontHeightInPoints((short) 16);
+        font.setBold(true);
+        font.setColor(IndexedColors.WHITE.getIndex());
+        headerStyle.setFont(font);
+
+        String[] data = {"Касса", "Адрес кассы", "Дата", "Фискальный Номер", "Вид Документа", "Вид оплаты", "Сумма"};
+
+        for (int i = 0; i < data.length; i++) {
+            Cell headerCell = header.createCell(i);
+            headerCell.setCellValue(data[i]);
+            headerCell.setCellStyle(headerStyle);
+        }
+
+        for (int i = 0; i < 7; i++) {
+            shift.setColumnWidth(i, 9000);
+        }
+
+        CellStyle style = workbook.createCellStyle();
+        style.setWrapText(true);
+
+        if (receiptList.size() < 1) {
+            LOGGER.error("В базе не найдено чеков для создания отчётов за текущий период.");
+            return new ResponseEntity<>("В базе не найдено чеков для создания отчётов за текущий период.", HttpStatus.OK);
+        } else {
+            for (int i = 0; i < receiptList.size(); i++) {
+                Row row = shift.createRow(i + 1);
+                String doc = "";
+                switch (receiptList.get(i).getOperationType()) {
+                    case ("Income"):
+                        doc = "Приход";
+                        break;
+                    case ("Expense"):
+                        doc = "Расход";
+                        break;
+                    case ("Refund income"):
+                        doc = "Возврат прихода";
+                        break;
+                    case ("Refund expense"):
+                        doc = "Возврат расхода";
+                        break;
+                }
+                String[] out = {
+                        receiptList.get(i).getKkt().getKktRegNumber(),
+                        receiptList.get(i).getKkt().getFiscalAddress(),
+                        receiptList.get(i).getDocDateTime().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")),
+                        String.valueOf(receiptList.get(i).getDocNumber()),
+                        doc,
+                        "Оплата наличными",
+                        String.valueOf(receiptList.get(i).getTotalSumm() / 100)
+                };
+                if (receiptList.get(i).getCashSumm() < receiptList.get(i).getECashSumm()) {
+                    out[5] = "Безналичная оплата";
+                }
+                for (int j = 0; j < out.length; j++) {
+                    Cell cell = row.createCell(j);
+                    if (j == 6) {
+                        cell.setCellValue(Double.parseDouble(out[j]));
+                    } else {
+                        cell.setCellValue(out[j]);
+                    }
+                    cell.setCellStyle(style);
+                }
+            }
+            File currDir = new File("../reports/");
+            String path = currDir.getCanonicalPath();
+
+            String fileName = "report-" + LocalDateTime.now().
+                    format(DateTimeFormatter.ofPattern("dd-MM-yyyyHH:mm:ss")).replace(':', '-') + ".xlsx";
+
+            String fileLocation = path + "\\" + fileName;
+
+            FileOutputStream outputStream = new FileOutputStream(fileLocation);
+            workbook.write(outputStream);
+            workbook.close();
+            LOGGER.info("Отчет был успешно создан : " + path);
+            return new ResponseEntity<>(new String[]{"Отчет был успешно создан : " + fileLocation, fileName}, HttpStatus.OK);
+        }
     }
 
     public AtomicBoolean getIsUpdating() {
@@ -287,12 +405,4 @@ public class ReceiptService {
         return isErr;
     }
 
-
-    public int getAmountOfTries() {
-        return amountOfTries;
-    }
-
-    public void setAmountOfTries(int amountOfTries) {
-        this.amountOfTries = amountOfTries;
-    }
 }

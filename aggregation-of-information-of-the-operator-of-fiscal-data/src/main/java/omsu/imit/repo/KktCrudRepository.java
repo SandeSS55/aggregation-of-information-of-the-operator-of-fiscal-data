@@ -29,9 +29,9 @@ public interface KktCrudRepository extends CrudRepository<Kkt, Long> {
 
     @Modifying(clearAutomatically = true)
     @Transactional
-    @Query(value = "update kkt u set u.fn_number = :fnNumber,u.fn_end_date=:fnEndDate,u.fiscal_address = :fiscalAddress,u.fiscal_place = :fiscalPlace,u.last_doc_on_ofd_date_time = :last_doc_on_ofd_date_time where u.kkt_reg_number = :kkt", nativeQuery = true)
+    @Query(value = "update kkt u set u.fn_number = :fnNumber,u.fn_end_date=:fnEndDate,u.fiscal_address = :fiscalAddress,u.fiscal_place = :fiscalPlace,u.last_doc_on_ofd_date_time = :last_doc_on_ofd_date_time,u.last_time_updated = :last_time_updated where u.kkt_reg_number = :kkt", nativeQuery = true)
     void updateKkt(@Param("fnNumber") String fnNumber, @Param("fnEndDate") String fnEndTime,
-                   @Param("fiscalAddress") String fiscalAddress, @Param("fiscalPlace") String fiscalPlace,@Param("last_doc_on_ofd_date_time") String last_doc_on_ofd_date_time, @Param("kkt") long kkt);
+                   @Param("fiscalAddress") String fiscalAddress, @Param("fiscalPlace") String fiscalPlace,@Param("last_doc_on_ofd_date_time") String last_doc_on_ofd_date_time,@Param("last_time_updated") String lastTimeUpdated, @Param("kkt") long kkt);
 
     @Modifying
     @Transactional
