@@ -27,6 +27,8 @@ public interface ReceiptsCrudRepository extends CrudRepository<Receipt,Long> {
     @Query(value = "delete from receipt where kkt_id=:id",nativeQuery = true)
     void deleteAllReceiptsByKkt(@Param("id") long id);
 
-    @Query(value = "select * from receipt where kkt_id = ?1",nativeQuery = true)
+    @Query(value = "select * from receipt where kkt_id =:id",nativeQuery = true)
     List<Receipt> findByKkt(long id);
+
+    List<Receipt> findAll();
 }

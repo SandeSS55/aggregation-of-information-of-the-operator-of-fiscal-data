@@ -49,7 +49,7 @@ public class Receipt {
     @JsonIgnore
     private String rawJson;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "kkt_id", nullable = false)
     @JsonIgnore
     private Kkt kkt;

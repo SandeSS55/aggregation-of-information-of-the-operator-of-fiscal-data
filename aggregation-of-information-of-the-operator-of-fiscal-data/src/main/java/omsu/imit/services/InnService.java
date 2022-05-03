@@ -113,6 +113,9 @@ public class InnService implements IInn {
                     LOGGER.error("OFD.ru перегружен или не отвечает долгое время. Нужно повторить попытку позже. Либо, я не уследил за ошибкой, и вы неверно ввели данные...");
                     return new ResponseEntity<>("OFD.ru перегружен или не отвечает долгое время.", HttpStatus.BAD_REQUEST);
                 }
+        }catch (Exception ex){
+            LOGGER.error("Произошла ошибка при добавлении ИНН. Подробнее в логах Spring.");
+            return new ResponseEntity<>("Ошибка InnService:"+ex.getMessage(),HttpStatus.BAD_REQUEST);
         }
         return null;
     }

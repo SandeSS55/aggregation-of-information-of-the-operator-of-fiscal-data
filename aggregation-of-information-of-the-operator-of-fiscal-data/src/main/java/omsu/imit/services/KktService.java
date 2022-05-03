@@ -57,12 +57,16 @@ public class KktService {
         return kktCrudRepository.getKkts(Objects.requireNonNull(iInn.getInfoAboutCertainInn(inn).getBody()).getId());
     }
 
-    public Optional<Kkt> getKktByid(long id) {
+    public Kkt getKktById(long id) {
         return kktCrudRepository.findById(id);
     }
 
     public void deleteAllKktByInn(long inn) {
         kktCrudRepository.deleteKktByInn(inn);
+    }
+
+    public void updateLastTimeUpdated(List<Kkt> kktList){
+        kktList.forEach(s->kktCrudRepository.updateLastTimeUpdated(LocalDateTime.now().toString(),Long.parseLong(s.getKktRegNumber())));
     }
 
 
@@ -85,7 +89,7 @@ public class KktService {
                                 obj.get("KktRegId").getAsString(),
                                 LocalDateTime.parse(obj.get("FirstDocumentDate").getAsString()),
                                 LocalDateTime.parse(obj.get("LastDocOnKktDateTime").getAsString()),
-                                LocalDateTime.now(),
+                                null,
                                 obj.get("FiscalAddress").getAsString(),
                                 obj.get("FiscalPlace").getAsString(),
                                 obj.get("KktModel").getAsString(),
@@ -99,7 +103,7 @@ public class KktService {
                                     if (kktCrudRepository.findByKktRegNumber(s.getKktRegNumber()) != null) {
                                         kktCrudRepository.updateKkt(s.getFnNumber(), s.getFnEndDate(),
                                                 s.getFiscalAddress(), s.getFiscalPlace(),
-                                                s.getLastDocOnOfdDateTime().toString(),LocalDateTime.now().toString(),
+                                                s.getLastDocOnOfdDateTime().toString(),
                                                 Long.parseLong(s.getKktRegNumber()));
                                     } else {
                                         kktCrudRepository.save(s);
@@ -146,6 +150,9 @@ public class KktService {
                 attemptsCount.set(1);
                 return new ResponseEntity<>("Запрос не вернул статус 'Success'", HttpStatus.BAD_REQUEST);
             }
+        }catch (Exception ex){
+            LOGGER.error("Произошла ошибка при добавлении ККТ. Подробнее в логах Spring.");
+            return new ResponseEntity<>("Ошибка KktService:"+ex.getMessage(),HttpStatus.BAD_REQUEST);
         }
         return new ResponseEntity<>("Произошла магия, и при добавлении касс метод вернул это сообщение. Как так получилось?...", HttpStatus.BAD_REQUEST);
     }

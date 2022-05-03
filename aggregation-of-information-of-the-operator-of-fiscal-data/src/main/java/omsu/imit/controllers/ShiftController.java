@@ -43,8 +43,8 @@ public class ShiftController {
     private final Logger LOGGER = LoggerFactory.getLogger(ShiftController.class);
 
     @PostMapping("/addInn")
-    public ResponseEntity<String> insertInn(@RequestBody InnInfoRequest innInfoRequest) throws JsonProcessingException {
-        ResponseEntity<?> responseEntity = innService.insertInn(innInfoRequest,userService.login(),userService.getUser());
+    public ResponseEntity<String> insertInn(@RequestBody InnInfoRequest innInfoRequest) {
+        ResponseEntity<?> responseEntity = innService.insertInn(innInfoRequest, userService.login(), userService.getUser());
         if (responseEntity.getStatusCode() == HttpStatus.BAD_REQUEST) {
             return new ResponseEntity<>(HttpStatus.NOT_ACCEPTABLE);
         }
@@ -52,9 +52,10 @@ public class ShiftController {
         if (responseEntity.getStatusCode() == HttpStatus.BAD_REQUEST) {
             return new ResponseEntity<>(HttpStatus.NOT_ACCEPTABLE);
         }
-        responseEntity = insertReceiptsNoUpdate(innInfoRequest,userService.login());
+        responseEntity = insertReceiptsNoUpdate(innInfoRequest, userService.login());
+        kktService.updateLastTimeUpdated(kktService.getAllKktByInn(innInfoRequest.getInn()));
 
-        return new ResponseEntity<String>((String) responseEntity.getBody(), HttpStatus.OK);
+        return new ResponseEntity<>((String) responseEntity.getBody(), HttpStatus.OK);
     }
 
     @PostMapping("/signup")
@@ -75,7 +76,7 @@ public class ShiftController {
         if (out.exists()) {
 
             response.setContentType("application/vnd.ms-excel");
-            response.setHeader("Content-Disposition", String.format("attachment; filename=\"" + out.getName() + "\""));
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + out.getName() + "\"");
             response.setContentLength((int) out.length());
             InputStream inputStream = new BufferedInputStream(new FileInputStream(out));
             FileCopyUtils.copy(inputStream, response.getOutputStream());
@@ -83,7 +84,7 @@ public class ShiftController {
     }
 
 
-    public User getUser(){
+    public User getUser() {
         return userService.getUser();
     }
 
@@ -92,8 +93,9 @@ public class ShiftController {
     @Scheduled(fixedDelay = 3600000, initialDelay = 3600000)
     public ResponseEntity<?> updateBase() {
         for (Inn inn : Objects.requireNonNull(innService.getInfoAboutAllInn().getBody())) {
-            kktService.insertOrUpdateKktFromInn(inn.getInn(), true,userService.login());
-            insertReceiptsFromUpdate(inn.getInn(),userService.login());
+            kktService.insertOrUpdateKktFromInn(inn.getInn(), true, userService.login());
+            insertReceiptsFromUpdate(inn.getInn(), userService.login());
+            kktService.updateLastTimeUpdated(kktService.getAllKktByInn(inn.getInn()));
         }
         return new ResponseEntity<>("Все ИНН, ККТ были успешно обновлены. Добавлены новые чеки.", HttpStatus.OK);
     }
@@ -123,13 +125,13 @@ public class ShiftController {
     @PostMapping("/receipts")
     public ResponseEntity<?> getReceipts(@RequestBody ReceiptRequest receiptRequest) {
         ResponseEntity<?> responseEntity = new ResponseEntity<>(
-                receiptService.getReceiptsByDate(receiptRequest.getDate(),kktService.getKktByid(receiptRequest.getId())).toString(), HttpStatus.OK);
+                receiptService.getReceiptsByDate(receiptRequest.getDate(), kktService.getKktById(receiptRequest.getId())).toString(), HttpStatus.OK);
         LOGGER.info("Чеки собраны.");
         return responseEntity;
     }
 
     public ResponseEntity<?> insertKKTs(long inn) {
-        return kktService.insertOrUpdateKktFromInn(inn, false,userService.login());
+        return kktService.insertOrUpdateKktFromInn(inn, false, userService.login());
     }
 
     public ResponseEntity<?> insertReceiptsNoUpdate(InnInfoRequest innInfoRequest, String token) {
@@ -138,6 +140,6 @@ public class ShiftController {
     }
 
     public ResponseEntity<?> insertReceiptsFromUpdate(long inn, String token) {
-        return receiptService.insertReceiptsFromInn(inn, true, token, null,kktService.getAllKktByInn(inn));
+        return receiptService.insertReceiptsFromInn(inn, true, token, null, kktService.getAllKktByInn(inn));
     }
 }

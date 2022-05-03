@@ -13,6 +13,7 @@ import com.google.gson.JsonObject;
 import omsu.imit.interfaces.HttpRequest;
 import omsu.imit.models.Kkt;
 import omsu.imit.models.Receipt;
+import omsu.imit.repo.KktCrudRepository;
 import omsu.imit.repo.ReceiptsCrudRepository;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFFont;
@@ -38,7 +39,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -52,6 +52,7 @@ public class ReceiptService {
 
     @Autowired
     private HttpRequest httpRequest;
+
 
     ObjectMapper mapper = JsonMapper.builder()
             .addModule(new ParameterNamesModule())
@@ -82,14 +83,11 @@ public class ReceiptService {
                 .collect(Collectors.toList());
     }
 
-    public JsonArray getReceiptsByDate(String date, Optional<Kkt> kkt) {
+    public JsonArray getReceiptsByDate(String date, Kkt kkt) {
         List<Kkt> kkts = new ArrayList<>();
 
-        if (kkt.isEmpty()) {
-            return new JsonArray();
-        }
+        kkts.add(kkt);
 
-        kkts.add(kkt.get());
         LocalDateTime from = LocalDate.parse(date).atTime(0, 0, 0);
 
         List<Receipt> list = findAllReceipt().stream().filter
@@ -197,7 +195,7 @@ public class ReceiptService {
         return arr;
     }
 
-    public ResponseEntity<?> insertReceiptsFromInn(long inn, boolean update,String token, LocalDateTime startFrom,List<Kkt> kktList) {
+    public ResponseEntity<?> insertReceiptsFromInn(long inn, boolean update, String token, LocalDateTime startFrom, List<Kkt> kktList) {
         try {
             getIsUpdating().getAndSet(true);
             List<Receipt> receipts = new ArrayList<>();
@@ -244,7 +242,7 @@ public class ReceiptService {
                     });
                     from = from.plusDays(90);
                 }
-                kkt.setLastTimeUpdated(kkt.getLastDocOnOfdDateTime());
+
                 LOGGER.info("Чеки для ККТ с регистрационным номером: " + kkt.getKktRegNumber() + " были успешно подготовлены для добавления в базу данных.");
             }
             receipts.sort(Comparator.comparingInt(Receipt::getShiftNumber).thenComparing(Receipt::getDocDateTime).thenComparingLong(o -> o.getKkt().getId()));
@@ -273,16 +271,19 @@ public class ReceiptService {
             getIsUpdating().getAndSet(false);
             amountOfTries.set(1);
             return new ResponseEntity<>("insertReceiptsFromInn : Ошибка при отправке запроса на чеки", HttpStatus.BAD_REQUEST);
-        }catch (HttpServerErrorException ex){
+        } catch (HttpServerErrorException ex) {
             if (amountOfTries.get() <= 3) {
                 amountOfTries.getAndIncrement();
                 getIsErr().getAndSet(true);
-                insertReceiptsFromInn(inn, update,token, startFrom,kktList);
+                insertReceiptsFromInn(inn, update, token, startFrom, kktList);
             } else {
                 getIsUpdating().getAndSet(false);
                 amountOfTries.set(1);
                 return new ResponseEntity<>("insertReceiptsFromInn : Ошибка при отправке запроса на чеки", HttpStatus.BAD_REQUEST);
             }
+        }catch (Exception ex){
+            LOGGER.error("Произошла ошибка при добавлении чеков. Подробнее в логах Spring.");
+            return new ResponseEntity<>("Ошибка KktService:"+ex.getMessage(),HttpStatus.BAD_REQUEST);
         }
         return new ResponseEntity<>("Произошла магия, и при добавлении чеков метод вернул это сообщение. Как так получилось?...", HttpStatus.BAD_REQUEST);
     }
@@ -293,6 +294,7 @@ public class ReceiptService {
             LOGGER.error("В базе не найдено ККТ для создания отчётов.");
             return new ResponseEntity<>("В базе не найдено ККТ для создания отчётов.", HttpStatus.OK);
         }
+
 
         List<Receipt> receiptList = findAllReceipt().stream().filter
                 (s -> kkts.contains(s.getKkt().getKktRegNumber())).filter(s -> s.getDocDateTime().isAfter(from) && s.getDocDateTime().isBefore(to)).
@@ -340,7 +342,7 @@ public class ReceiptService {
 
         if (receiptList.size() < 1) {
             LOGGER.error("В базе не найдено чеков для создания отчётов за текущий период.");
-            return new ResponseEntity<>("В базе не найдено чеков для создания отчётов за текущий период.", HttpStatus.OK);
+            return new ResponseEntity<>("В базе не найдено чеков для создания отчётов за текущий период.", HttpStatus.BAD_REQUEST);
         } else {
             for (int i = 0; i < receiptList.size(); i++) {
                 Row row = shift.createRow(i + 1);

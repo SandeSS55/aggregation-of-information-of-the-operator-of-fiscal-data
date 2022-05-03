@@ -1,0 +1,286 @@
+@startuml
+participant Actor
+Actor -> ShiftController : insertInn
+activate ShiftController
+ShiftController -> UserService : login
+activate UserService
+UserService -> UserService : loginPostPlainJSON
+activate UserService
+UserService -> UserService : loginPostPlainJSON
+activate UserService
+UserService --> UserService
+deactivate UserService
+UserService --> UserService
+deactivate UserService
+UserService -> UserService : updateUser
+activate UserService
+UserService -> UserCrudRepository : updateUser
+activate UserCrudRepository
+UserCrudRepository --> UserService
+deactivate UserCrudRepository
+UserService --> UserService
+deactivate UserService
+UserService --> ShiftController
+deactivate UserService
+ShiftController -> InnService : insertInn
+activate InnService
+InnService -> InnCrudRepository : findByInn
+activate InnCrudRepository
+InnCrudRepository --> InnService
+deactivate InnCrudRepository
+InnService -> HttpRequest : getPostsPlainJSON
+activate HttpRequest
+HttpRequest -> OfdService : getPostsPlainJSON
+activate OfdService
+OfdService --> HttpRequest
+deactivate OfdService
+HttpRequest --> InnService
+deactivate HttpRequest
+InnService -> InnCrudRepository : insertNewInn
+activate InnCrudRepository
+InnCrudRepository --> InnService
+deactivate InnCrudRepository
+InnService -> InnCrudRepository : insertNewInn
+activate InnCrudRepository
+InnCrudRepository --> InnService
+deactivate InnCrudRepository
+InnService -> InnService : insertInn
+activate InnService
+InnService -> InnCrudRepository : findByInn
+activate InnCrudRepository
+InnCrudRepository --> InnService
+deactivate InnCrudRepository
+InnService -> HttpRequest : getPostsPlainJSON
+activate HttpRequest
+HttpRequest -> OfdService : getPostsPlainJSON
+activate OfdService
+OfdService --> HttpRequest
+deactivate OfdService
+HttpRequest --> InnService
+deactivate HttpRequest
+InnService -> InnCrudRepository : insertNewInn
+activate InnCrudRepository
+InnCrudRepository --> InnService
+deactivate InnCrudRepository
+InnService -> InnCrudRepository : insertNewInn
+activate InnCrudRepository
+InnCrudRepository --> InnService
+deactivate InnCrudRepository
+InnService --> InnService
+deactivate InnService
+InnService --> ShiftController
+deactivate InnService
+ShiftController -> ShiftController : insertKKTs
+activate ShiftController
+ShiftController -> UserService : login
+activate UserService
+UserService -> UserService : loginPostPlainJSON
+activate UserService
+UserService -> UserService : loginPostPlainJSON
+activate UserService
+UserService -> UserService : loginPostPlainJSON
+activate UserService
+UserService --> UserService
+deactivate UserService
+UserService --> UserService
+deactivate UserService
+UserService --> UserService
+deactivate UserService
+UserService -> UserService : updateUser
+activate UserService
+UserService -> UserCrudRepository : updateUser
+activate UserCrudRepository
+UserCrudRepository --> UserService
+deactivate UserCrudRepository
+UserService --> UserService
+deactivate UserService
+UserService --> ShiftController
+deactivate UserService
+ShiftController -> KktService : insertOrUpdateKktFromInn
+activate KktService
+KktService -> HttpRequest : getPostsPlainJSON
+activate HttpRequest
+HttpRequest -> OfdService : getPostsPlainJSON
+activate OfdService
+OfdService --> HttpRequest
+deactivate OfdService
+HttpRequest --> KktService
+deactivate HttpRequest
+KktService -> IInn : getInfoAboutCertainInn
+activate IInn
+IInn -> InnService : getInfoAboutCertainInn
+activate InnService
+InnService -> InnCrudRepository : findByInn
+activate InnCrudRepository
+InnCrudRepository --> InnService
+deactivate InnCrudRepository
+InnService --> IInn
+deactivate InnService
+IInn --> KktService
+deactivate IInn
+KktService -> KktService : λ→
+activate KktService
+create Kkt
+KktService -> Kkt : new
+activate Kkt
+Kkt --> KktService
+deactivate Kkt
+KktService --> KktService
+deactivate KktService
+KktService -> KktService : λ→
+activate KktService
+KktService -> KktCrudRepository : findByKktRegNumber
+activate KktCrudRepository
+KktCrudRepository --> KktService
+deactivate KktCrudRepository
+KktService -> KktCrudRepository : updateKkt
+activate KktCrudRepository
+KktCrudRepository --> KktService
+deactivate KktCrudRepository
+KktService --> KktService
+deactivate KktService
+KktService -> KktService : insertOrUpdateKktFromInn
+activate KktService
+KktService -> HttpRequest : getPostsPlainJSON
+activate HttpRequest
+HttpRequest -> OfdService : getPostsPlainJSON
+activate OfdService
+OfdService --> HttpRequest
+deactivate OfdService
+HttpRequest --> KktService
+deactivate HttpRequest
+KktService -> IInn : getInfoAboutCertainInn
+activate IInn
+IInn -> InnService : getInfoAboutCertainInn
+activate InnService
+InnService -> InnCrudRepository : findByInn
+activate InnCrudRepository
+InnCrudRepository --> InnService
+deactivate InnCrudRepository
+InnService --> IInn
+deactivate InnService
+IInn --> KktService
+deactivate IInn
+KktService -> KktService : λ→
+activate KktService
+create Kkt
+KktService -> Kkt : new
+activate Kkt
+Kkt --> KktService
+deactivate Kkt
+KktService --> KktService
+deactivate KktService
+KktService -> KktService : λ→
+activate KktService
+KktService -> KktCrudRepository : findByKktRegNumber
+activate KktCrudRepository
+KktCrudRepository --> KktService
+deactivate KktCrudRepository
+KktService -> KktCrudRepository : updateKkt
+activate KktCrudRepository
+KktCrudRepository --> KktService
+deactivate KktCrudRepository
+KktService --> KktService
+deactivate KktService
+KktService --> KktService
+deactivate KktService
+KktService --> ShiftController
+deactivate KktService
+ShiftController --> ShiftController
+deactivate ShiftController
+ShiftController -> UserService : login
+activate UserService
+UserService -> UserService : loginPostPlainJSON
+activate UserService
+UserService -> UserService : loginPostPlainJSON
+activate UserService
+UserService --> UserService
+deactivate UserService
+UserService --> UserService
+deactivate UserService
+UserService -> UserService : updateUser
+activate UserService
+UserService -> UserCrudRepository : updateUser
+activate UserCrudRepository
+UserCrudRepository --> UserService
+deactivate UserCrudRepository
+UserService --> UserService
+deactivate UserService
+UserService --> ShiftController
+deactivate UserService
+ShiftController -> ShiftController : insertReceiptsNoUpdate
+activate ShiftController
+ShiftController -> KktService : getAllKktByInn
+activate KktService
+KktService -> IInn : getInfoAboutCertainInn
+activate IInn
+IInn -> InnService : getInfoAboutCertainInn
+activate InnService
+InnService -> InnCrudRepository : findByInn
+activate InnCrudRepository
+InnCrudRepository --> InnService
+deactivate InnCrudRepository
+InnService --> IInn
+deactivate InnService
+IInn --> KktService
+deactivate IInn
+KktService -> KktCrudRepository : getKkts
+activate KktCrudRepository
+KktCrudRepository --> KktService
+deactivate KktCrudRepository
+KktService --> ShiftController
+deactivate KktService
+ShiftController -> ReceiptService : insertReceiptsFromInn
+activate ReceiptService
+ReceiptService -> HttpRequest : getPostsPlainJSON
+activate HttpRequest
+HttpRequest -> OfdService : getPostsPlainJSON
+activate OfdService
+OfdService --> HttpRequest
+deactivate OfdService
+HttpRequest --> ReceiptService
+deactivate HttpRequest
+ReceiptService -> ReceiptService : λ→
+activate ReceiptService
+create Receipt
+ReceiptService -> Receipt : new
+activate Receipt
+Receipt --> ReceiptService
+deactivate Receipt
+ReceiptService --> ReceiptService
+deactivate ReceiptService
+ReceiptService -> ReceiptService : λ→
+activate ReceiptService
+ReceiptService --> ReceiptService
+deactivate ReceiptService
+ReceiptService -> ReceiptService : insertReceiptsFromInn
+activate ReceiptService
+ReceiptService -> HttpRequest : getPostsPlainJSON
+activate HttpRequest
+HttpRequest -> OfdService : getPostsPlainJSON
+activate OfdService
+OfdService --> HttpRequest
+deactivate OfdService
+HttpRequest --> ReceiptService
+deactivate HttpRequest
+ReceiptService -> ReceiptService : λ→
+activate ReceiptService
+create Receipt
+ReceiptService -> Receipt : new
+activate Receipt
+Receipt --> ReceiptService
+deactivate Receipt
+ReceiptService --> ReceiptService
+deactivate ReceiptService
+ReceiptService -> ReceiptService : λ→
+activate ReceiptService
+ReceiptService --> ReceiptService
+deactivate ReceiptService
+ReceiptService --> ReceiptService
+deactivate ReceiptService
+ReceiptService --> ShiftController
+deactivate ReceiptService
+ShiftController --> ShiftController
+deactivate ShiftController
+return
+@enduml

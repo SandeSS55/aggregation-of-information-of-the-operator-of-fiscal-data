@@ -68,7 +68,7 @@ public class Kkt {
     @JsonIgnore
     private Set<Receipt> receiptSet;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "inn_id", nullable = false)
     @JsonBackReference
     private Inn inn;

@@ -48,7 +48,7 @@ public class Inn {
     @JsonManagedReference
     private Set<Kkt> kktSet;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     @JsonBackReference
     private User user;
